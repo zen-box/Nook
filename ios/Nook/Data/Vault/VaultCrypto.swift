@@ -46,8 +46,9 @@ enum VaultCrypto {
         else { throw Failure.keyDerivation }
         var derived = [UInt8](repeating: 0, count: 32)
         // Use the C entry point: preserves UTF-8 bytes, including Chinese and embedded NULs.
-        let status = password.utf8CString.withUnsafeBufferPointer { bytes in
-            crypto_pwhash(&derived, 32, bytes.baseAddress, UInt64(bytes.count - 1),
+        let status = try password.utf8CString.withUnsafeBufferPointer { bytes in
+            guard let passwordBytes = bytes.baseAddress else { throw Failure.keyDerivation }
+            return crypto_pwhash(&derived, 32, passwordBytes, UInt64(bytes.count - 1),
                           [UInt8](salt), UInt64(parameters.operations), size_t(parameters.memoryBytes),
                           crypto_pwhash_alg_argon2id13())
         }
