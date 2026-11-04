@@ -89,13 +89,18 @@ public enum AgentPlanner {
                 try validate(.object(data), kind: action.kind)
                 if action.kind == .trip, let journey {
                     let trip = try JSONValue.object(data).decoded(TripPlan.self)
-                    let previous = try records.filter { $0.kind == .event }.compactMap { try $0.data.decoded(ScheduleEvent.self) }
-                        .filter { $0.planID == trip.id && $0.transport != nil }.sorted { $0.start < $1.start }.first
+                    var previous: ScheduleEvent?
+                    for record in records where record.kind == .event {
+                        let candidate: ScheduleEvent = try record.data.decoded(ScheduleEvent.self)
+                        guard candidate.planID == trip.id, candidate.transport != nil else { continue }
+                        if previous == nil || candidate.start < previous!.start { previous = candidate }
+                    }
                     var segment: ScheduleEvent?
                     if journey != .null {
                         guard let patch = journey.object, Set(patch.keys).isSubset(of: ["title", "start", "end", "notes", "reminder_minutes", "transport"]),
                               previous != nil || patch["start"] != nil else { throw AgentPlanError.invalid("journey fields and departure time") }
-                        var payload = try JSONValue.from(previous ?? ScheduleEvent(title: trip.title, start: now, transport: .init(kind: .other), createdAt: now)).object!
+                        let original: ScheduleEvent = previous ?? ScheduleEvent(title: trip.title, start: now, transport: TransportDetails(kind: .other), createdAt: now)
+                        var payload: [String: JSONValue] = try JSONValue.from(original).object!
                         try merge(patch, into: &payload, kind: .event)
                         segment = try JSONValue.object(payload).decoded(ScheduleEvent.self)
                     }

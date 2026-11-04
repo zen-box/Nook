@@ -116,8 +116,8 @@ struct TripEditorView: View {
             title = trip.title; destination = trip.destination ?? ""; summary = trip.summary
             start = trip.startDate.noon; end = trip.endDate.noon
         }
-        let journey = transportEventID.flatMap { store.event(id: $0) }
-            ?? store.events.filter { tripID != nil && $0.planID == tripID && $0.transport != nil }.sorted { $0.start < $1.start }.first
+        let linkedJourneys: [ScheduleEvent] = store.events.filter { tripID != nil && $0.planID == tripID && $0.transport != nil }
+        let journey: ScheduleEvent? = transportEventID.flatMap { store.event(id: $0) } ?? linkedJourneys.min { $0.start < $1.start }
         if let journey {
             originalJourney = journey; transport = journey.transport
             departure = journey.start; arrival = journey.end ?? journey.start.addingTimeInterval(3600)
