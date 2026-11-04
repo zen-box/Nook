@@ -71,7 +71,9 @@ struct EventEditorView: View {
                 Section {
                     Toggle("All day", isOn: $isAllDay)
                     DatePicker("Starts", selection: $start, displayedComponents: components)
+                        .environment(\.timeZone, transport.flatMap { TimeZone(identifier: $0.departureTimeZone) } ?? store.timeZone)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: components)
+                        .environment(\.timeZone, transport.flatMap { TimeZone(identifier: $0.arrivalTimeZone) } ?? store.timeZone)
                     Picker("Reminder", selection: $reminder) {
                             Text("None").tag(Int?.none)
                             ForEach(Self.reminderOptions, id: \.self) { minutes in

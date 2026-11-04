@@ -87,7 +87,12 @@ extension AppStore {
         for file in dataset.files {
             let target = attachments.fileURL(for: file.ref)
             if FileManager.default.fileExists(atPath: target.path) {
-                guard try Data(contentsOf: target) == file.bytes else { throw SyncError.missingAttachment }
+                if try Data(contentsOf: target) != file.bytes {
+                    let quarantine = attachments.folder.appending(path: "quarantine", directoryHint: .isDirectory)
+                    try FileManager.default.createDirectory(at: quarantine, withIntermediateDirectories: true)
+                    try FileManager.default.copyItem(at: target, to: quarantine.appending(path: "\(file.ref.id)-\(UUID()).damaged"))
+                    try file.bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                }
             } else { try file.bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
         }
         let previousVault = try JSONValue.from(PortableVault(key: database.vaultKey(), records: database.vaultRecords()))

@@ -102,6 +102,20 @@ public struct SyncDocument: Hashable, Codable, Sendable {
         clock.counters[device, default: 0] += 1
         records[index].heads = [SyncVersion(clock: clock, payload: selected.payload)]
     }
+    /// Explicit historical restore supersedes all known branches, including tombstones.
+    public mutating func restore(_ values: [String: JSONValue], deviceID: UUID) throws {
+        for key in Set(records.map(\.id)).union(values.keys).sorted() {
+            let index = records.firstIndex { $0.id == key }
+            if let index, records[index].heads.count == 1, records[index].visible?.payload == values[key] { continue }
+            var clock = SyncClock.merged(index.map { records[$0].heads.map(\.clock) } ?? [])
+            let device = deviceID.uuidString.lowercased()
+            guard clock.counters[device, default: 0] < UInt64.max else { throw SyncError.invalidHistory }
+            clock.counters[device, default: 0] += 1
+            let record = SyncRecord(id: key, heads: [.init(clock: clock, payload: values[key])])
+            if let index { records[index] = record } else { records.append(record) }
+        }
+        records.sort { $0.id < $1.id }
+    }
 }
 public enum SyncError: LocalizedError {
     case invalidHistory, wrongLibrary, missingAttachment, changedDuringSync, invalidRecoveryCode, notConfigured

@@ -22,6 +22,7 @@ enum ReminderScheduler {
     /// Asks for permission the first time a reminder is needed, then replaces every pending
     /// reminder with the current list.
     static func sync(events: [ScheduleEvent], tasks: [TaskItem] = [], anniversaries: [Anniversary] = [], now: Date = Date()) async {
+        UserDefaults.standard.removeObject(forKey: "reminders.error")
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let reminders = ReminderPlan.make(events: events, tasks: tasks, anniversaries: anniversaries, now: now)

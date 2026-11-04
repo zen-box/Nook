@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import NookCore
+import UserNotifications
 
 /// An unfinished checklist item, shown on the home screen.
 struct OpenTodo: Identifiable, Hashable {
@@ -54,13 +55,34 @@ final class AppStore {
     let defaults: UserDefaults
     @ObservationIgnored private var reminderSync: Task<Void, Never>?
     @ObservationIgnored private var assistantStorage: AgentSession?
+    @ObservationIgnored private var syncStorage: SyncCoordinator?
+    var syncCoordinator: SyncCoordinator {
+        if let syncStorage { return syncStorage }
+        let coordinator = SyncCoordinator(store: self); syncStorage = coordinator; return coordinator
+    }
+    func installTransferredSync(_ settings: S3TransferSettings) throws {
+        try SecretStore.write(settings.rootKey, account: "sync.root.\(settings.state.library.id)")
+        try SecretStore.write(JSONEncoder().encode(settings.credentials), account: "sync.s3")
+        try database.setMetadata(NookJSON.makeEncoder().encode(settings.state), key: "sync.state")
+        defaults.set(try JSONEncoder().encode(settings.configuration), forKey: "sync.configuration")
+        try Data().write(to: attachments.folder.appending(path: ".retain-sync-history"), options: .atomic)
+        syncStorage = nil
+    }
 
     var assistantSession: AgentSession {
         if let assistantStorage { return assistantStorage }
         let session = AgentSession(read: { [weak self] in self?.assistantRecords() ?? [] }, commit: { [weak self] plan in
             guard let self else { throw AgentPlanError.missingRecord }
             try self.applyAssistantPlan(plan)
-        }, currency: { [weak self] in self?.currencyCode ?? "CNY" })
+        }, currency: { [weak self] in self?.currencyCode ?? "CNY" }, reminderFeedback: { [weak self] in
+            await self?.reminderSync?.value
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            if settings.authorizationStatus != .authorized && settings.authorizationStatus != .provisional {
+                return String(localized: "Records saved, but notifications are not allowed. Enable Nook notifications in iOS Settings.")
+            }
+            if let error = UserDefaults.standard.string(forKey: "reminders.error") { return String(localized: "Records saved. ") + error }
+            return String(localized: "Records saved and reminders scheduled.")
+        })
         assistantStorage = session
         return session
     }

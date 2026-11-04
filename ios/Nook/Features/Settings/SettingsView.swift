@@ -37,6 +37,7 @@ struct SettingsView: View {
     @State private var confirmRestore = false
     @State private var confirmVaultReset = false
     @State private var isChangingPassword = false
+    @AppStorage("widgets.details") private var widgetDetails = false
 
     var body: some View {
         @Bindable var store = store
@@ -126,8 +127,18 @@ struct SettingsView: View {
                 Section("Assistant") {
                     NavigationLink("AI Settings") { AISettingsView() }
                 }
+                Section {
+                    Toggle("Show Details in Widgets", isOn: $widgetDetails)
+                        .onChange(of: widgetDetails) { _, _ in WidgetPublisher.publish(store) }
+                    if !WidgetPublisher.isAvailable {
+                        Text("Widget sharing is unavailable. The re-signed app and widget need matching App Groups entitlements.").font(.footnote).foregroundStyle(Theme.textSecondary)
+                    }
+                } header: { Text("Widgets") } footer: { Text("Widgets share only schedule and task summaries. Passwords, keys and note contents are never shared.") }
 
                 Section {
+                    NavigationLink("S3 Sync") { SyncSettingsView() }
+                    NavigationLink("Encrypted Backup") { EncryptedBackupView() }
+                    NavigationLink("Device Migration") { DeviceTransferView() }
                     if let backupURL {
                         ShareLink(item: backupURL) {
                             Label("Export Backup", systemImage: "square.and.arrow.up")

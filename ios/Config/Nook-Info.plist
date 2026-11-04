@@ -27,10 +27,18 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array><dict><key>CFBundleURLSchemes</key><array><string>nook</string></array></dict></array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Nook uses Face ID to unlock your vault.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Nook uses the microphone when you choose voice input or record an audio note.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Nook uses the camera when you scan a new device's temporary migration code.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Nook connects to your other device on the local network when you choose device migration.</string>
+	<key>NSBonjourServices</key>
+	<array><string>_nook-transfer._tcp</string></array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Nook transcribes your chosen voice input and recordings on this device.</string>
 	<key>UIApplicationSceneManifest</key>

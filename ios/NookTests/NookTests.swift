@@ -67,7 +67,7 @@ struct SampleDataTests {
 @MainActor
 struct PersistenceTests {
     @Test func migrationsAreApplied() throws {
-        #expect(try AppDatabase.makeInMemory().appliedMigrations() == ["v1", "v2-vault-argon2id", "v3-note-content"])
+        #expect(try AppDatabase.makeInMemory().appliedMigrations() == ["v1", "v2-vault-argon2id", "v3-note-content", "v4-assistant-schedule"])
     }
 
     @Test func recordsSurviveARestart() throws {
@@ -200,7 +200,9 @@ struct VaultTests {
         fields: [
             VaultField(label: "Username", value: "alex@example.com"),
             VaultField(label: "Password", value: "s3cret-Passw0rd", isSecret: true),
-        ]
+        ],
+        // Payload dates intentionally round-trip at RFC3339 millisecond precision.
+        createdAt: Date(timeIntervalSince1970: 1_793_750_400)
     )
 
     @Test func itemsSurviveARestartEncrypted() async throws {

@@ -39,6 +39,7 @@ final class SyncCoordinator {
     private var state: SyncLocalState?
     private let store: AppStore
     private let deviceID: UUID
+    private var automaticSync: Task<Void, Never>?
     var configuration: S3Configuration? {
         store.defaults.data(forKey: "sync.configuration").flatMap { try? JSONDecoder().decode(S3Configuration.self, from: $0) }
     }
@@ -89,6 +90,13 @@ final class SyncCoordinator {
     func recoveryCode() throws -> String {
         guard let state, let key = try SecretStore.read("sync.root.\(state.library.id)") else { throw SyncError.notConfigured }
         return SyncCrypto.code(key)
+    }
+    func transferSettings(values: [String: JSONValue]) throws -> S3TransferSettings? {
+        guard configuration != nil else { return nil }
+        let (client, key, saved) = try connection(); var copy = saved
+        try copy.document.capture(values, baseline: copy.baseline, deviceID: deviceID)
+        copy.baseline = values
+        return .init(configuration: client.configuration, credentials: client.credentials, rootKey: key, state: copy)
     }
     private func connection() throws -> (S3Client, Data, SyncLocalState) {
         guard let state, let config = configuration, let encoded = try SecretStore.read("sync.s3"),
@@ -201,6 +209,38 @@ final class SyncCoordinator {
             self.state = state; conflicts = state.document.conflicts
             await sync()
         } catch { self.error = error.localizedDescription }
+    }
+    func restoreHistory(_ item: SyncHistoryItem) async {
+        guard !isWorking else { return }
+        // Commit today's data as an encrypted history entry before restoring an older one.
+        await sync()
+        guard error == nil else { return }
+        isWorking = true; defer { isWorking = false }
+        do {
+            let (client, key, saved) = try connection(); var current = saved
+            let original = try store.portableValues()
+            let snapshot = try await readSnapshot(item.id, client: client, key: key, libraryID: current.library.id)
+            try mergeAttachments(snapshot.attachments, into: &current.attachments)
+            try current.document.restore(snapshot.document.materialized, deviceID: deviceID)
+            let refs = try allRefs(current.document)
+            let files = try await fetchFiles(refs, descriptors: current.attachments, client: client, key: key, library: current.library.id)
+            guard try store.portableValues() == original else { throw SyncError.changedDuringSync }
+            current.baseline = current.document.materialized
+            try store.installPortable(.init(values: current.baseline, files: files), syncState: NookJSON.makeEncoder().encode(current))
+            state = current; conflicts = current.document.conflicts; status = String(localized: "History restored. Sync to propagate this restore to other devices.")
+        } catch { self.error = error.localizedDescription }
+    }
+    func scheduleSync() {
+        guard configuration != nil else { return }
+        automaticSync?.cancel()
+        automaticSync = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(3))
+                while self?.isWorking == true { try await Task.sleep(for: .seconds(1)) }
+                guard let self, !Task.isCancelled else { return }
+                await self.sync()
+            } catch { }
+        }
     }
     func disconnect() {
         guard !isWorking else { return }

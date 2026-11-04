@@ -30,11 +30,14 @@ final class AgentSession {
     private let read: () -> [AgentRecord]
     private let commit: (AgentPlan) throws -> Void
     private let currency: () -> String
+    private let reminderFeedback: () async -> String
 
-    init(read: @escaping () -> [AgentRecord], commit: @escaping (AgentPlan) throws -> Void, currency: @escaping () -> String) {
-        self.read = read; self.commit = commit; self.currency = currency
+    init(read: @escaping () -> [AgentRecord], commit: @escaping (AgentPlan) throws -> Void, currency: @escaping () -> String,
+         reminderFeedback: @escaping () async -> String = { "" }) {
+        self.read = read; self.commit = commit; self.currency = currency; self.reminderFeedback = reminderFeedback
     }
     func send(_ text: String, images: [AIImage], configuration: AIConfiguration, key: String) {
+        if images.isEmpty && ["取消", "算了", "不要了", "取消刚才的操作", "cancel"].contains(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) { cancel(); return }
         guard !isWorking, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty else { return }
         generation += 1
         let ticket = generation
@@ -55,6 +58,7 @@ final class AgentSession {
                     messages.append(AIMessage(role: "assistant", text: response.text, calls: response.calls, providerItems: response.providerItems))
                     if response.calls.isEmpty {
                         if !response.text.isEmpty { bubbles.append(AgentBubble(isUser: false, text: response.text)) }
+                        result = String(localized: "No changes saved. Actions require a confirmation card.")
                         return
                     }
                     var shouldReturn = false
@@ -134,8 +138,20 @@ final class AgentSession {
                 if let after = mutation.after { known.append(.init(kind: mutation.kind, id: mutation.id, data: after)) }
             }
             messages.append(AIMessage(role: "user", text: "客户端确认已成功保存以下操作：\((try? JSONValue.from(plan).json) ?? plan.summary)。后续修改这些记录要使用真实ID进行update。"))
-            result = String(localized: "Changes saved. Reminder delivery follows your notification permissions.")
+            result = String(localized: "Changes saved.")
             self.plan = nil
+            let needsReminder = plan.mutations.contains { m in
+                let key = m.kind == .event ? "reminder_minutes" : m.kind == .task ? "reminderMinutes" : "reminder"
+                return [.event, .task, .anniversary].contains(m.kind) && m.after?[key] != nil && m.after?[key] != .null
+            }
+            if needsReminder {
+                isWorking = true
+                Task {
+                    let feedback = await reminderFeedback()
+                    if !feedback.isEmpty { result = feedback }
+                    isWorking = false
+                }
+            }
         } catch { self.error = error.localizedDescription }
     }
     func undo() {

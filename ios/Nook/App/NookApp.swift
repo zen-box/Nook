@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct NookApp: App {
+    @UIApplicationDelegateAdaptor(NotificationDelegate.self) private var notificationDelegate
     @State private var store: AppStore
     @State private var router = AppRouter()
     @AppStorage("appearance") private var appearance: Appearance = .system

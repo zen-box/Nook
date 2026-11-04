@@ -39,6 +39,8 @@ struct RootView: View {
         }
         .task {
             store.syncReminders()
+            store.syncCoordinator.scheduleSync()
+            WidgetPublisher.publish(store)
             if store.isTemporary {
                 router.showToast(ToastMessage(text: "Storage unavailable: changes won't be kept", symbol: "exclamationmark.triangle.fill", isWarning: true))
             }
@@ -47,6 +49,19 @@ struct RootView: View {
             // The vault forgets its key and entries as soon as the app leaves the screen.
             if phase == .background {
                 store.vault.lock()
+            }
+            if phase == .active { store.syncReminders(); store.syncCoordinator.scheduleSync(); WidgetPublisher.publish(store) }
+        }
+        .onChange(of: store.dataRevision) { _, _ in store.syncCoordinator.scheduleSync(); WidgetPublisher.publish(store) }
+        .onOpenURL { url in
+            guard url.scheme == "nook" else { return }
+            switch url.host {
+            case "assistant": router.present(.assistant)
+            case "tasks": router.present(.tasks)
+            case "expense": router.present(.newExpense)
+            case "note": router.startNewNote(in: store)
+            case "anniversaries": router.showSchedule(segment: .anniversaries)
+            default: break
             }
         }
         .modifier(PrivacyShield())

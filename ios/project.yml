@@ -39,6 +39,8 @@ targets:
       - path: Nook
     dependencies:
       - package: NookCore
+      - target: NookWidgets
+        embed: true
       - package: GRDB
       - package: Sodium
         product: Clibsodium
@@ -46,6 +48,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal
         PRODUCT_NAME: Nook
+        CODE_SIGN_ENTITLEMENTS: Config/Nook.entitlements
         INFOPLIST_FILE: Config/Nook-Info.plist
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -60,6 +63,23 @@ targets:
       testTargets:
         - NookTests
         - NookUITests
+
+  NookWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NookWidgets
+    dependencies:
+      - package: NookCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal.widgets
+        INFOPLIST_FILE: Config/NookWidgets-Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: Config/Nook.entitlements
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1"
 
   NookTests:
     type: bundle.unit-test
