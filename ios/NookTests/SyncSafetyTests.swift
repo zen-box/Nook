@@ -19,6 +19,27 @@ struct SyncSafetyTests {
         #expect(throws: (any Error).self) { try SyncCrypto.open(damaged, key: key, context: "file/a") }
         #expect(try SyncCrypto.key(from: SyncCrypto.code(key)) == key)
     }
+    @Test func sealedVaultCommitsAdvanceSyncRevisionButUnlockingDoesNot() async throws {
+        let store = try store()
+        store.vault.usesQuickUnlock = false
+        let initial = store.vault.syncRevision
+        try await store.vault.setUp(masterPassword: "test-password-long-enough")
+        #expect(store.vault.syncRevision == initial + 1)
+        let item = VaultItem(title: "Secret", category: .account, icon: "lock", fields: [])
+        try store.vault.save(item)
+        #expect(store.vault.syncRevision == initial + 2)
+        try store.vault.save(item)
+        #expect(store.vault.syncRevision == initial + 2)
+        store.vault.lock()
+        try await store.vault.unlock(masterPassword: "test-password-long-enough")
+        #expect(store.vault.syncRevision == initial + 2)
+        try store.vault.delete(item.id)
+        #expect(store.vault.syncRevision == initial + 3)
+        try await store.vault.changeMasterPassword(current: "test-password-long-enough", new: "new-password-long-enough")
+        #expect(store.vault.syncRevision == initial + 4)
+        try store.vault.reset()
+        #expect(store.vault.syncRevision == initial + 5)
+    }
     @Test func encryptedArchiveRestoresPhotosAudioTasksAndSealedVault() async throws {
         let source = try store(), target = try store()
         defer { try? FileManager.default.removeItem(at: source.attachments.folder); try? FileManager.default.removeItem(at: target.attachments.folder) }
@@ -53,6 +74,23 @@ struct SyncSafetyTests {
         let dataset = PortableDataset(values: ["note/\(note.id)": try .from(note)], files: [])
         #expect(throws: (any Error).self) { try target.installPortable(dataset) }
         #expect(target.notes.map(\.title) == ["Keep"])
+    }
+    @Test func conflictingImmutableAttachmentRejectsArchiveWithoutTouchingExistingBytes() throws {
+        let source = try store(), target = try store()
+        defer { try? FileManager.default.removeItem(at: source.attachments.folder); try? FileManager.default.removeItem(at: target.attachments.folder) }
+        let ref = FileRef(name: "photo.jpg", kind: .image, byteCount: 3)
+        try Data([1,2,3]).write(to: source.attachments.fileURL(for: ref))
+        try Data([4,5,6]).write(to: target.attachments.fileURL(for: ref))
+        #expect(source.saveNote(.init(title: "Incoming", category: .personal, attachments: [ref])))
+        #expect(target.saveNote(.init(title: "Keep", category: .personal, attachments: [ref])))
+        let key = SyncCrypto.makeKey()
+        let archive = try BackupArchive.write(values: source.portableValues(), refs: [ref], folder: source.attachments.folder, key: key)
+        defer { try? FileManager.default.removeItem(at: archive) }
+        let staged = try BackupArchive.read(archive, key: key)
+        defer { try? FileManager.default.removeItem(at: staged.folder) }
+        #expect(throws: SyncError.self) { try BackupArchive.install(staged, into: target) }
+        #expect(target.notes.map(\.title) == ["Keep"])
+        #expect(try Data(contentsOf: target.attachments.fileURL(for: ref)) == Data([4,5,6]))
     }
     @Test func expiredPairingIsRejectedAndCodeContainsNoLongTermSecret() throws {
         let id = UUID(), privateKey = Curve25519.KeyAgreement.PrivateKey()

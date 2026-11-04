@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("appearance") private var appearance: Appearance = .system
 
     var body: some View {
         @Bindable var router = router
@@ -53,6 +54,8 @@ struct RootView: View {
             if phase == .active { store.syncReminders(); store.syncCoordinator.scheduleSync(); WidgetPublisher.publish(store) }
         }
         .onChange(of: store.dataRevision) { _, _ in store.syncCoordinator.scheduleSync(); WidgetPublisher.publish(store) }
+        .onChange(of: store.vault.syncRevision) { _, _ in store.syncCoordinator.scheduleSync() }
+        .onChange(of: appearance) { _, _ in store.syncCoordinator.scheduleSync() }
         .onOpenURL { url in
             guard url.scheme == "nook" else { return }
             switch url.host {

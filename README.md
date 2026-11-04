@@ -1,137 +1,79 @@
 # Nook
 
-Nook 是一个私密、离线优先的个人生活空间，目标平台为 iOS 17+。客户端已决定改用 **Swift + SwiftUI**，后端继续使用 **Go**。
+Nook 是一个面向 iPhone 的私密生活工具：便签、任务、日程、行程、纪念日和记账放在本地，密码库单独加密。需要多设备同步时，用户自行配置 S3；需要快捷处理事务时，用户自行接入 AI API。日常使用不依赖 Nook 服务器。
 
-## 技术栈
+## 当前技术栈
 
-| 层级 | 选型 |
+| 层级 | 实现 |
 |---|---|
-| iOS 界面 | SwiftUI、Observation、NavigationStack、Swift Charts |
-| 可移植业务核心 | Swift Package `NookCore`，Foundation / Codable 与协议抽象 |
-| iOS 本地数据 | SQLite + GRDB 7.12.0、数据库迁移；当前搜索在内存中过滤 |
-| iOS 系统集成 | Keychain、LocalAuthentication、UserNotifications、PhotosPicker |
-| 本地密码库 | libsodium（swift-sodium 0.11.0）、Argon2id、XChaCha20-Poly1305 |
-| 工程与依赖 | XcodeGen + Swift Package Manager |
-| 服务端 | Go；具体数据库、对象存储和部署方案后续确定 |
-| 构建与体验 | Windows 编辑 / 核心包测试，Codemagic macOS 编译 + App Preview |
-| 真机测试 | 云端生成未签名 IPA → 万能签重新签名 → 自己的 iPhone |
+| iOS 17+ 客户端 | Swift 6、SwiftUI、Observation，连续便签编辑器使用 UITextView |
+| 可移植业务核心 | `packages/NookCore`，Foundation / Codable，可在 Windows 测试 |
+| 本地持久化 | SQLite + GRDB 7.12.0，事务和版本化迁移 |
+| 密码库 | swift-sodium 0.11.0；Argon2id + XChaCha20-Poly1305 |
+| 可选 S3 同步 / 加密备份 | URLSession、SigV4、CryptoKit HKDF / AES-GCM |
+| 扫码迁移 | Network / Bonjour、X25519、双端验证码确认、加密分帧传输 |
+| 系统能力 | Keychain、LocalAuthentication、UserNotifications、Speech、AVFoundation、WidgetKit |
+| 工程 / 构建 | XcodeGen 2.46.0 + SwiftPM；GitHub Actions 原生测试与未签名 Release IPA；保留 Codemagic 工作流 |
 
-## 当前实现与迁移状态
+`server/` 是早期 Go 健康检查骨架，当前 App 不调用它。旧 Flutter 原型与旧服务端规格保存在 `archive/`，不作为当前架构依据。
 
-- [旧 Flutter 原型归档](archive/flutter-prototype-2026-11-04/README.md)：原 `app/` 已移至 `archive/flutter-prototype-2026-11-04/app/`，同时保存旧版规格与 README。原型包含首页、便签、基础日程和收支记录，使用 shared_preferences 本地 JSON；新客户端的视觉以用户提供的参考图为准。
-- `server/`：Go 服务端骨架，已有 `/healthz` 健康端点，暂不接收业务数据。
-- Swift for Windows 6.4.2 已装在 `E:\Swift\Toolchain`，编译、运行、包构建和 Foundation JSON 测试已通过。
-- `packages/NookCore/`：业务模型、金额与日期计算、查询统计、备份格式、同步信封、密码生成器和 Repository 协议。Windows 上 `swift test` 93 个测试全部通过。
-- `ios/`：SwiftUI App，包含首页、便签、密码库、日程、记账五个入口，以及中英文界面和设置。正式启动读取 SQLite，示例数据仅用于 Debug UI 测试。
-- 本地功能：连续正文便签（文字、勾选清单、照片按光标顺序混排，标题 / 正文 / 粗体 / 斜体、撤销 / 重做）、日程 / 行程 / 纪念日、收支增删改、统计、货币与月预算设置、JSON 备份导出和恢复。旧便签自动兼容，新正文通过 SQLite v3 迁移保存。提醒规则与真机检查见 [便签与提醒](docs/notes-and-reminders.md)。
-- 密码库：主密码创建与解锁、账号 / 卡片 / 自定义秘密字段、搜索 / 收藏 / 密码生成、限时本机剪贴板、修改主密码和重置；密文落库，Keychain 快捷解锁要求系统认证，后台锁定并遮盖应用切换快照。详见 [本地密码库格式与验收](docs/local-vault.md)。
-- 构建记录：`8dd62d0` 已在 Codemagic 生成未签名 IPA。本次持久化与密码库版本通过 Windows 核心测试、Go 检查和 iOS Swift 语法检查；**完整 iOS 编译、App 单元/UI 测试与真机验收仍需对最新提交执行**。
-- `codemagic.yaml` + `scripts/`：模拟器 Preview、未签名 IPA、测试三个工作流，以及命令行调用构建 API 的脚本。
-- JSON 备份包含便签、日程、行程、纪念日与收支；**不包含照片文件、密码库和设置**。请勿把它当成完整迁移包。卸载前需另行保管密码库中的重要凭据；忘记主密码只能清空重建。
-- 后续阶段：账号、服务端数据接口、加密同步、统一密钥 / 恢复协议、FTS5、EventKit 和 AI。Go 服务端目前仍只有健康检查。
+## 已接入的功能
+
+- **连续便签**：文字、勾选清单、照片、录音在同一正文内混排；基础富文本、撤销 / 重做、录音播放和本机语音转写。
+- **任务与时间管理**：独立任务、日 / 周 / 月 / 年重复日程、星期选择、截止日期 / 次数、仅本次 / 本次及以后 / 整个系列修改；纪念日和本地提醒。
+- **交通日程**：车次 / 航班、出发与到达站点、时间与时区、航站楼 / 登机口 / 站台、车厢 / 座位等可选字段。信息由用户维护，不联网查询晚点或实时检票口。
+- **记账**：收支与转账记录、分类统计、货币和月预算。金额使用整数最小货币单位，不自动换汇。
+- **事务助手**：搜索允许的普通记录，提出选项问题，生成可继续补充的草稿，确认后执行新增 / 修改 / 删除，支持撤销。密码库与基础设施秘密从能力入口隔离。
+- **AI 接入**：OpenAI Chat Completions / Responses、Gemini GenerateContent、Claude Messages；自定义 HTTPS API Base、Key、模型列表分页获取与搜索、手填模型、图片输入。模型必须支持对应协议与工具调用；图片能力依模型而定。
+- **密码库**：主密码、系统认证快捷解锁、后台锁定与快照遮罩；解密工作移出主线程。密码库不会进入 AI 请求。
+- **S3 加密同步**：自配 Endpoint / Bucket / Region / Prefix / 寻址方式 / 凭据；附件先上传，快照最后提交；保留并发冲突、删除墓碑和加密历史，支持显式选版和历史恢复。
+- **备份与迁移**：完整 `.nookbackup` 加密包含照片、录音、普通记录、设置与密封密码库；同局域网扫码迁移可选择携带 S3 连接。API Key 不迁移。
+- **小组件**：今日安排 / 任务、纪念日和快捷入口，默认隐藏详细标题；依赖重签时正确保留 App Groups 与扩展权限。
+
+功能边界、密钥和恢复流程见 [当前规格书 v4](Personal-Hub-开发规格书-v2.md)、[同步与恢复](docs/sync-and-recovery.md)、[便签与提醒](docs/notes-and-reminders.md)、[密码库](docs/local-vault.md)。
+
+## 三种密钥不要混淆
+
+| 内容 | 用途 | 换手机 / 重装后需要 |
+|---|---|---|
+| S3 访问凭据 | 读写用户的存储桶 | 同步需重新配置，或通过受确认的设备迁移携带 |
+| `NOOK1.…` 恢复码 | 解密对应 S3 资料库或对应备份包 | 必须单独保管；仅有 S3 凭据不能解密 |
+| 密码库主密码 | 解开密封密码库 | 恢复码不会替代它；快捷解锁密钥不会迁移 |
+
+丢失全部设备及对应恢复码后，S3 密文无法恢复。手动恢复备份会替换当前本地资料，请先导出当前备份。旧 JSON 导出仅供兼容，不含照片 / 录音文件、密码库和完整设置。
+
+## 开发与验证
+
+在 Windows 编辑 Swift，在 macOS / Xcode 编译和测试完整 App。Windows 通过不代表 SwiftUI / Apple 框架已经通过编译。
+
+```powershell
+swift test --package-path packages/NookCore
+```
+
+macOS（Xcode 已安装）运行：
+
+```sh
+bash scripts/generate-project.sh
+IOS_TEST_DESTINATION='platform=iOS Simulator,name=你的可用 iPhone 模拟器' bash scripts/test-ios.sh
+bash scripts/build-ios-device-unsigned.sh
+```
+
+推送 `main` 或 `codex/**` 会触发 `.github/workflows/ios.yml`：核心包测试 → App 单元 / UI 测试 → 未签名 Release 真机构建。Actions 保存 `ios-diagnostics`（日志、xcresult、截图）和 `Nook-unsigned`（IPA）。下载 IPA 后由用户重签安装；模拟器 `.app` 不能改包成真机 IPA。
+
+`codemagic.yaml` 仍提供 `ios-simulator-preview`、`ios-device-unsigned`、`ios-tests`。命令行脚本 `scripts/codemagic-build.ps1` 从环境变量读取 `CODEMAGIC_API_TOKEN` 与 `CODEMAGIC_APP_ID`；不要把 token 写入仓库。Preview 资格与额度以当前平台账户为准。
+
+本地核心测试当前为 **108 项**。App 单元、UI 和 Release 构建以交付提交对应 Actions 记录为准。真实 S3 厂商兼容性、双手机局域网迁移、Face ID、麦克风、通知和重签小组件还需在设备上验收；本机与模拟 HTTP 测试不会替代这些实测。
 
 ## 目录
 
 ```text
-ios/
-  project.yml            XcodeGen 工程定义（生成的 Nook.xcodeproj 不入库）
-  Config/                Info.plist
-  Nook/App               入口、Tab 与导航路由
-  Nook/DesignSystem      颜色 / 字体 / 间距 Token、卡片、悬浮 Tab 栏等组件
-  Nook/Data              AppStore、Database / Vault、照片、提醒、示例数据
-  Nook/Features          Home / Notes / Vault / Schedule / Finance / Settings
-  Nook/Resources         Assets.xcassets、Localizable.xcstrings
-  NookTests, NookUITests 单元测试与 UI 测试
-packages/NookCore/       可在 Windows 编译测试的业务核心
-server/                  Go 服务端骨架
-docs/                    决策记录、API 约定
-testvectors/             预留给后续同步协议；本地密码库向量在 ios/NookTests
-scripts/                 构建、测试、图标和字符串脚本
+ios/                    主 App、Widgets、单元 / UI 测试与 XcodeGen 配置
+packages/NookCore/      模型、查询、重复规则、Agent 校验与同步冲突模型
+scripts/               构建、测试、图标和本地化生成
+.github/workflows/     原生 iOS 验证流水线
+docs/                  当前协议、安全边界、决策与验收说明
+server/                早期 Go 骨架；当前客户端不依赖
+archive/               Flutter 原型、历史规格
 ```
 
-## 开发与测试流程
-
-```text
-Windows 编写 Swift / SwiftUI / Go
-  ├── Swift for Windows：纯 Swift 核心包编译与单元测试
-  ├── Go：本地后端运行与测试
-  └── 命令行调用 Codemagic API：触发云端 macOS + Xcode
-       ├── 模拟器 Nook.app → App Preview 交互与截图
-       └── 真机 Nook-unsigned.ipa → 万能签 → iPhone 实测
-```
-
-Windows 本机检查纯 Swift 业务代码；完整 SwiftUI App、GRDB 与 Apple 框架由云端编译和测试。App Preview 需在支持该功能的团队账户启用，构建和 Preview 按当前账户额度安排。模拟器产物与真机 IPA 分别构建。
-
-首页先在 Preview 中对照参考图验收，再扩展其他页面；真机包按里程碑集中安装。云端工作流不要求提供 Apple 签名证书或本地 Mac。
-
-## 当前可用的本地命令
-
-查看 Swift 工具链：
-
-```powershell
-swift --version
-```
-
-Go 服务端检查与运行：
-
-```powershell
-Push-Location server
-try {
-    go test ./...
-    go vet ./...
-    go run .
-} finally {
-    Pop-Location
-}
-```
-
-服务启动后访问 `http://localhost:8080/healthz`。远程 Preview / iPhone 联调需配置其可达的 API 地址，不能把 Windows 的 `localhost` 直接用于远程设备；首版本地 MVP 不依赖后端。
-
-NookCore 核心包，在仓库根目录执行：
-
-```powershell
-swift build --package-path packages/NookCore
-swift test --package-path packages/NookCore
-```
-
-一次跑完 Swift 核心包和 Go 的检查：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/test-local.ps1
-```
-
-改了 logo 或界面文字后重新生成资源（需要 Python 和 Pillow）：
-
-```powershell
-python -I scripts/make-app-icon.py logo.png ios/Nook/Resources/Assets.xcassets
-python -I scripts/build-strings.py .
-```
-
-## 在 Codemagic 上构建
-
-第一次需要做的设置：
-
-1. 在 GitHub 新建仓库，把本项目推送上去（默认分支 `main`）。
-2. 在 Codemagic 添加这个仓库，它会读取根目录的 `codemagic.yaml`。App Preview 需要在 Team（按量付费）账户下使用。
-3. 在 Codemagic 设置的 Integrations → Codemagic API 里复制 API token；app id 在该 App 页面的网址里（`codemagic.io/app/<app id>`）。
-
-三个工作流：
-
-| 工作流 | 产物 | 用途 |
-|---|---|---|
-| `ios-simulator-preview` | `Nook.app`（模拟器） | 构建页面里点 Quick Launch 打开 App Preview |
-| `ios-device-unsigned` | `Nook-unsigned.ipa` | 下载后用万能签重签，装到自己的 iPhone |
-| `ios-tests` | 测试结果 | NookCore 测试 + App 单元测试 / UI 测试 |
-
-可以在 Codemagic 网页上点 Start new build，也可以在命令行触发并下载产物：
-
-```powershell
-$env:CODEMAGIC_API_TOKEN = "你的 token"
-$env:CODEMAGIC_APP_ID = "你的 app id"
-powershell -ExecutionPolicy Bypass -File scripts/codemagic-build.ps1 -Workflow ios-simulator-preview
-powershell -ExecutionPolicy Bypass -File scripts/codemagic-build.ps1 -Workflow ios-device-unsigned -DownloadDir build
-```
-
-脚本会打印构建页面地址，等待构建结束并列出产物；`-NoWait` 只触发不等待，`-BuildId` 查看已有构建。App Preview 只能在网页上启动（Codemagic API 不提供这个接口）。token 只放在环境变量里，不要写进仓库。
-
-完整技术边界、目标目录、云端构建示例与阶段验收见 [Nook 开发规格书（Swift / SwiftUI 版 v3）](Personal-Hub-开发规格书-v2.md)。
+改动界面文字后执行 `python -I scripts/build-strings.py .`。图标由 `scripts/make-app-icon.py` 生成。当前搜索仍是本地内存过滤；FTS5、统一文件中心、EventKit、自动填充等未实现需求保留在规格书的后续清单。

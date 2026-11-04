@@ -30,6 +30,8 @@ final class VaultStore {
     private(set) var storageFailed = false
     private(set) var isUnlockingQuickly = false
     private(set) var quickUnlockError: String?
+    /// Observable commit counter only; no decrypted values cross into synchronization.
+    private(set) var syncRevision = 0
 
     /// Keep a Face ID copy of the vault key in the keychain.
     var usesQuickUnlock: Bool {
@@ -130,6 +132,7 @@ final class VaultStore {
             createdAt: Date()
         )
         try database.save(record)
+        syncRevision += 1
         state = .locked
         try await open(with: vaultKey, ticket: ticket)
     }
@@ -215,11 +218,13 @@ final class VaultStore {
         record.memoryLimit = parameters.memoryBytes
         record.wrappedKey = wrapped
         try database.save(record)
+        syncRevision += 1
     }
 
     /// Deletes every entry and the master password, for a forgotten password.
     func reset() throws {
         try database.eraseVault()
+        syncRevision += 1
         operation += 1
         keychain.delete()
         key = nil
@@ -293,6 +298,7 @@ final class VaultStore {
         record.wrappedKey = wrapped
         record.keyCheck = try VaultCrypto.makeKeyCheck(vaultKey)
         try database.replaceVault(key: record, records: upgraded)
+        syncRevision += 1
     }
 
     private func reloadCounts() {
@@ -330,6 +336,7 @@ final class VaultStore {
             updatedAt: saved.updatedAt
         )
         try database.save(record)
+        syncRevision += 1
         if let existing {
             items[existing] = saved
         } else {
@@ -341,6 +348,7 @@ final class VaultStore {
     func delete(_ id: UUID) throws {
         guard key != nil, state == .unlocked else { throw VaultError.locked }
         try database.delete(VaultRecord.self, id: id)
+        syncRevision += 1
         items.removeAll { $0.id == id }
         reloadCounts()
     }

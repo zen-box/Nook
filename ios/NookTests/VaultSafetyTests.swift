@@ -74,7 +74,11 @@ struct VaultMigrationTests {
                                          authenticating: Data("nook.vault.key.v1".utf8)).combined
         let check = try ChaChaPoly.seal(Data("nook.vault.key-check.v1".utf8), using: key).combined
         try database.save(VaultKeyRecord(version: 1, salt: salt, rounds: 1_000, wrappedKey: wrapped, keyCheck: check, createdAt: Date()))
-        let item = VaultItem(title: "Old account", category: .account, icon: "key", fields: [VaultField(label: "Password", value: "old-secret", isSecret: true)])
+        // The persisted format has millisecond precision; use an exactly representable
+        // fixture rather than comparing a nanosecond wall-clock value after JSON storage.
+        let item = VaultItem(title: "Old account", category: .account, icon: "key",
+                             fields: [VaultField(label: "Password", value: "old-secret", isSecret: true)],
+                             createdAt: Date(timeIntervalSince1970: 1_793_786_130.125))
         var sealed = try ChaChaPoly.seal(NookJSON.makeEncoder().encode(item), using: key,
                                         authenticating: VaultCrypto.associatedData(id: item.id, version: 1)).combined
         if damaged { sealed[sealed.count - 1] ^= 1 }

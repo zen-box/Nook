@@ -23,6 +23,8 @@ struct TasksView: View {
                                 if let date = task.dueAt { Text(date, format: .dateTime.month().day().hour().minute()).font(.caption).foregroundStyle(Theme.textSecondary) }
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }.buttonStyle(.plain)
+                            .accessibilityLabel(Text(verbatim: task.title))
+                            .accessibilityIdentifier("task.edit.\(task.id)")
                     }
                 }
                 if let error { Text(verbatim: error).foregroundStyle(Pastel.rose.strong) }

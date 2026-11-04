@@ -3,6 +3,7 @@ import NookCore
 
 @MainActor
 struct AISettingsView: View {
+    @Environment(AppStore.self) private var store
     @State private var configuration = AISettings.load()
     @State private var key = ""
     @State private var models: [AIModel] = []
@@ -81,6 +82,7 @@ struct AISettingsView: View {
             if key.isEmpty { try SecretStore.delete("ai.apiKey") }
             else { try SecretStore.write(Data(key.utf8), account: "ai.apiKey") }
             UserDefaults.standard.set(try JSONEncoder().encode(configuration), forKey: "ai.configuration")
+            store.syncCoordinator.scheduleSync()
             dismiss()
         } catch { message = error.localizedDescription }
     }

@@ -69,7 +69,8 @@ final class NookUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap(); title.typeText("Buy a train ticket")
         app.buttons["task.save"].tap()
-        let task = app.buttons.containing(.staticText, identifier: "Buy a train ticket").firstMatch
+        XCTAssertTrue(app.buttons["task.save"].waitForNonExistence(timeout: 5))
+        let task = app.buttons["Buy a train ticket"].firstMatch
         XCTAssertTrue(task.waitForExistence(timeout: 5))
         task.tap()
         XCTAssertEqual(title.value as? String, "Buy a train ticket")
@@ -83,11 +84,13 @@ final class NookUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["tab.schedule"].waitForExistence(timeout: 15))
         app.buttons["tab.schedule"].tap()
-        app.buttons["button.add"].tap()
+        let schedule = app.scrollViews["screen.schedule"]
+        XCTAssertTrue(schedule.waitForExistence(timeout: 5))
+        schedule.buttons["button.add"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["New Event"].waitForExistence(timeout: 5))
         reveal(app.switches["Repeats"], in: app)
         app.switches["Repeats"].tap()
-        XCTAssertTrue(app.buttons["Repeat"].exists)
+        XCTAssertTrue(app.buttons["Weekdays"].exists)
         reveal(app.switches["Transport Details"], in: app)
         app.switches["Transport Details"].tap()
         reveal(app.textFields["Train Number"], in: app)

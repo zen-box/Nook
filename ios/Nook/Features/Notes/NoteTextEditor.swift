@@ -417,9 +417,15 @@ enum NoteTextCodec {
             } else {
                 let font = attributes[.font] as? UIFont ?? UIFont.preferredFont(forTextStyle: .body)
                 let traits = font.fontDescriptor.symbolicTraits
-                result.append(NoteRun((string.string as NSString).substring(with: range),
+                let run = NoteRun((string.string as NSString).substring(with: range),
                     style: font.pointSize >= UIFont.preferredFont(forTextStyle: .title2).pointSize ? .heading : .body,
-                    bold: traits.contains(.traitBold), italic: traits.contains(.traitItalic)))
+                    bold: traits.contains(.traitBold), italic: traits.contains(.traitItalic))
+                // UIKit can split text into separate font-fallback spans (e.g. emoji)
+                // during undo. Only the persisted semantic formatting defines a run.
+                if let last = result.last, last.checklist == nil, last.attachment == nil,
+                   last.style == run.style, last.bold == run.bold, last.italic == run.italic {
+                    result[result.count - 1].text += run.text
+                } else { result.append(run) }
             }
         }
         return result

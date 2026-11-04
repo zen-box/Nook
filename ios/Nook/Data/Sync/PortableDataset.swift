@@ -50,7 +50,8 @@ extension AppStore {
         return byID.values.sorted { $0.id.uuidString < $1.id.uuidString }
     }
     /// Validate every file before installing any record. Content-address checks happen before here.
-    func installPortable(_ dataset: PortableDataset, syncState: Data? = nil, credentialAccount: String? = nil) throws {
+    func installPortable(_ dataset: PortableDataset, syncState: Data? = nil, credentialAccount: String? = nil,
+                         fileSources: [UUID: URL] = [:]) throws {
         guard dataset.format == "nook.transfer", dataset.version == 1 else { throw SyncError.wrongLibrary }
         let previousValues = try portableValues()
         var backup = NookBackup(tasks: [])
@@ -76,24 +77,41 @@ extension AppStore {
                   vault.key != nil || vault.records.isEmpty else { throw SyncError.invalidHistory }
         }
         let supplied = Dictionary(grouping: dataset.files, by: { $0.ref.id })
-        for ref in try Self.attachmentRefs(in: dataset.values) {
+        guard supplied.values.allSatisfy({ $0.count == 1 }) else { throw SyncError.missingAttachment }
+        let refs = try Self.attachmentRefs(in: dataset.values)
+        func incoming(_ ref: FileRef) throws -> Data? {
             if let file = supplied[ref.id]?.first {
                 guard file.ref == ref, ref.byteCount.map({ $0 == file.bytes.count }) ?? true else { throw SyncError.missingAttachment }
+                return file.bytes
+            }
+            if let source = fileSources[ref.id] {
+                let bytes = try Data(contentsOf: source)
+                guard ref.byteCount.map({ $0 == bytes.count }) ?? true else { throw SyncError.missingAttachment }
+                return bytes
+            }
+            return nil
+        }
+        // Validate the entire import before touching files or records. An immutable file ID
+        // can never replace existing bytes: a later DB failure (or a crash) must leave all
+        // attachments referenced by the current library unchanged.
+        for ref in refs {
+            let target = attachments.fileURL(for: ref)
+            if let bytes = try incoming(ref) {
+                if FileManager.default.fileExists(atPath: target.path) {
+                    guard try Data(contentsOf: target) == bytes else { throw SyncError.missingAttachment }
+                }
             } else {
-                guard FileManager.default.fileExists(atPath: attachments.fileURL(for: ref).path) else { throw SyncError.missingAttachment }
+                let bytes = try Data(contentsOf: target)
+                guard ref.byteCount.map({ $0 == bytes.count }) ?? true else { throw SyncError.missingAttachment }
             }
         }
-        // Files are immutable UUIDs. Existing bytes must agree; failed DB commits only leave orphans.
-        for file in dataset.files {
-            let target = attachments.fileURL(for: file.ref)
-            if FileManager.default.fileExists(atPath: target.path) {
-                if try Data(contentsOf: target) != file.bytes {
-                    let quarantine = attachments.folder.appending(path: "quarantine", directoryHint: .isDirectory)
-                    try FileManager.default.createDirectory(at: quarantine, withIntermediateDirectories: true)
-                    try FileManager.default.copyItem(at: target, to: quarantine.appending(path: "\(file.ref.id)-\(UUID()).damaged"))
-                    try file.bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-                }
-            } else { try file.bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
+        // Failed DB commits can only leave new unreferenced files. Staged archives are read
+        // one file at a time instead of loading the whole photo/audio library into memory.
+        for ref in refs {
+            let target = attachments.fileURL(for: ref)
+            if !FileManager.default.fileExists(atPath: target.path), let bytes = try incoming(ref) {
+                try bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            }
         }
         let previousVault = try JSONValue.from(PortableVault(key: database.vaultKey(), records: database.vaultRecords()))
         try database.writer.write { db in

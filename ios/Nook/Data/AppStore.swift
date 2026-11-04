@@ -37,16 +37,16 @@ final class AppStore {
 
     /// Shown on the avatar; empty until set in Settings.
     var displayName: String {
-        didSet { defaults.set(displayName, forKey: Keys.displayName) }
+        didSet { defaults.set(displayName, forKey: Keys.displayName); if oldValue != displayName { dataRevision += 1 } }
     }
 
     var currencyCode: String {
-        didSet { defaults.set(currencyCode, forKey: Keys.currency) }
+        didSet { defaults.set(currencyCode, forKey: Keys.currency); if oldValue != currencyCode { dataRevision += 1 } }
     }
 
     /// In minor units of `currencyCode`; 0 means no budget.
     var monthlyBudgetMinor: Int64 {
-        didSet { defaults.set(Int(monthlyBudgetMinor), forKey: Keys.budget) }
+        didSet { defaults.set(Int(monthlyBudgetMinor), forKey: Keys.budget); if oldValue != monthlyBudgetMinor { dataRevision += 1 } }
     }
 
     let vault: VaultStore
