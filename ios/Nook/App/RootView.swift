@@ -35,6 +35,7 @@ struct RootView: View {
                 .environment(store)
                 .environment(router)
                 .modifier(PrivacyShield())
+                .modifier(AppAppearance())
         }
         .task {
             store.syncReminders()
@@ -67,6 +68,15 @@ struct PrivacyShield: ViewModifier {
                     .accessibilityHidden(true)
             }
         }
+    }
+}
+
+/// Each presentation observes the preference, including a sheet that is already open.
+struct AppAppearance: ViewModifier {
+    @AppStorage("appearance") private var appearance: Appearance = .system
+
+    func body(content: Content) -> some View {
+        content.preferredColorScheme(appearance.colorScheme)
     }
 }
 

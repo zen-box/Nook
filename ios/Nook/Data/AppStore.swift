@@ -127,7 +127,7 @@ final class AppStore {
 
     /// Stores an edited note. The edit time only moves when something actually changed.
     @discardableResult
-    func saveNote(_ note: Note) -> Bool {
+    func saveNote(_ note: Note, retainingAttachments: [FileRef] = []) -> Bool {
         var saved = note
         let index = notes.firstIndex { $0.id == note.id }
         let previousAttachments = index.map { notes[$0].attachments } ?? []
@@ -142,7 +142,7 @@ final class AppStore {
             notes.append(saved)
         }
         // Only remove files after their references have been removed from SQLite.
-        for ref in previousAttachments where !notes.contains(where: { $0.attachments.contains(where: { $0.id == ref.id }) }) {
+        for ref in previousAttachments where !retainingAttachments.contains(where: { $0.id == ref.id }) && !notes.contains(where: { $0.attachments.contains(where: { $0.id == ref.id }) }) {
             attachments.delete(ref)
         }
         return true
@@ -181,9 +181,8 @@ final class AppStore {
     }
 
     func toggleChecklistItem(_ itemID: UUID, in noteID: UUID) {
-        guard var updated = note(id: noteID),
-              let index = updated.checklist.firstIndex(where: { $0.id == itemID }) else { return }
-        updated.checklist[index].isDone.toggle()
+        guard var updated = note(id: noteID) else { return }
+        updated.toggleChecklistItem(itemID)
         saveNote(updated)
     }
 
@@ -193,6 +192,13 @@ final class AppStore {
 
     func discardPhoto(_ ref: FileRef) {
         attachments.delete(ref)
+    }
+
+    /// Editor undo can restore removed photos until the editing session closes.
+    func discardUnreferencedPhotos(_ refs: [FileRef]) {
+        for ref in refs where !notes.contains(where: { $0.attachments.contains(where: { $0.id == ref.id }) }) {
+            attachments.delete(ref)
+        }
     }
 
     func openTodos(limit: Int) -> [OpenTodo] {
@@ -229,7 +235,7 @@ final class AppStore {
     }
 
     /// Today's events that have not finished yet.
-    func reminders(now: Date) -> [ScheduleEvent] {
+    func todaysAgenda(now: Date) -> [ScheduleEvent] {
         let today = LocalDate.today(in: timeZone, now: now)
         return ScheduleQuery.upcoming(events, after: now).filter {
             LocalDate($0.start, timeZone: timeZone) == today

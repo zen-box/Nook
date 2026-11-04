@@ -74,6 +74,13 @@ struct EventEditorView: View {
                         }
                     }
                 }
+                if isAllDay {
+                    Text("All-day events don't send reminders. Choose a start time to receive a notification.")
+                        .font(.footnote).foregroundStyle(Theme.textSecondary)
+                } else {
+                    Text("Reminds you before the start, using a local notification. Allow notifications in iOS Settings. Past reminder times are skipped.")
+                        .font(.footnote).foregroundStyle(Theme.textSecondary)
+                }
                 if !store.trips.isEmpty {
                     Section {
                         Picker("Trip", selection: $tripID) {

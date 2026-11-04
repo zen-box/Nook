@@ -223,6 +223,16 @@
         }
       }
     },
+    "A trip groups related events. To receive reminders, add timed events to it and set their reminder times.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程用于归组相关日程；如需提醒，请添加有具体时间的日程并设置提前量。"
+          }
+        }
+      }
+    },
     "About": {
       "localizations": {
         "zh-Hans": {
@@ -323,6 +333,16 @@
         }
       }
     },
+    "Add a timed event and choose a reminder to receive a notification.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加有具体时间的日程并选择提醒，即可接收通知。"
+          }
+        }
+      }
+    },
     "Add item": {
       "localizations": {
         "zh-Hans": {
@@ -373,6 +393,16 @@
         }
       }
     },
+    "All-day events don't send reminders. Choose a start time to receive a notification.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全天日程暂不发送提醒。请选择具体时间以接收通知。"
+          }
+        }
+      }
+    },
     "Amount": {
       "localizations": {
         "zh-Hans": {
@@ -389,6 +419,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "纪念日"
+          }
+        }
+      }
+    },
+    "Anniversaries show a countdown; they don't send notifications yet.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "纪念日目前用于展示倒计时，暂不发送通知。"
           }
         }
       }
@@ -479,6 +519,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "生日和重要的日子，带倒计时。"
+          }
+        }
+      }
+    },
+    "Body": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正文"
+          }
+        }
+      }
+    },
+    "Bold": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粗体"
           }
         }
       }
@@ -1013,6 +1073,16 @@
         }
       }
     },
+    "Device authentication failed. Use your master password or try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统身份认证失败，请重试或使用主密码。"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "zh-Hans": {
@@ -1353,6 +1423,16 @@
         }
       }
     },
+    "Heading": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标题"
+          }
+        }
+      }
+    },
     "Health": {
       "localizations": {
         "zh-Hans": {
@@ -1369,6 +1449,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "隐藏"
+          }
+        }
+      }
+    },
+    "Hide Keyboard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起键盘"
           }
         }
       }
@@ -1457,6 +1547,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "密码库里的所有内容都用它加密。"
+          }
+        }
+      }
+    },
+    "Italic": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "斜体"
           }
         }
       }
@@ -1821,6 +1921,16 @@
         }
       }
     },
+    "No upcoming events today": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天没有待办日程"
+          }
+        }
+      }
+    },
     "None": {
       "localizations": {
         "zh-Hans": {
@@ -2091,6 +2201,16 @@
         }
       }
     },
+    "Quick unlock unavailable (Keychain %lld). Use your master password.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷解锁不可用（钥匙串 %lld），请使用主密码。"
+          }
+        }
+      }
+    },
     "Recent Note": {
       "localizations": {
         "zh-Hans": {
@@ -2121,6 +2241,16 @@
         }
       }
     },
+    "Redo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重做"
+          }
+        }
+      }
+    },
     "Reminder": {
       "localizations": {
         "zh-Hans": {
@@ -2137,6 +2267,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天日程的提醒会显示在这里。"
+          }
+        }
+      }
+    },
+    "Reminds you before the start, using a local notification. Allow notifications in iOS Settings. Past reminder times are skipped.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按所选提前量发送本机通知，需在 iOS 设置中允许通知；已过去的提醒时间会跳过。"
           }
         }
       }
@@ -2541,6 +2681,16 @@
         }
       }
     },
+    "Text Format": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格式"
+          }
+        }
+      }
+    },
     "The two passwords don't match.": {
       "localizations": {
         "zh-Hans": {
@@ -2637,6 +2787,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "今天"
+          }
+        }
+      }
+    },
+    "Today's agenda": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日安排"
+          }
+        }
+      }
+    },
+    "Today's upcoming events. System notifications follow each event's reminder setting.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这里展示今天尚未结束的日程；系统通知按每条日程的提醒设置发送。"
           }
         }
       }
@@ -2781,12 +2951,32 @@
         }
       }
     },
+    "Undo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销"
+          }
+        }
+      }
+    },
     "Unlock": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "解锁"
+          }
+        }
+      }
+    },
+    "Unlock once with your master password to enable quick unlock on this device.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先用主密码解锁一次，以在这台设备上启用快捷解锁。"
           }
         }
       }

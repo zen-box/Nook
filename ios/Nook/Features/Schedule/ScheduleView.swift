@@ -95,7 +95,6 @@ private struct CalendarSection: View {
                 router.selectedDay = day
             }
             DayTimeline(day: router.selectedDay, today: today, now: now)
-            WeekExpenseCard(today: today)
         }
     }
 }

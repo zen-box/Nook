@@ -58,8 +58,10 @@ public struct FileRef: Identifiable, Hashable, Codable, Sendable {
 public struct Note: Identifiable, Hashable, Codable, Sendable {
     public var id: UUID
     public var title: String
-    /// Markdown.
+    /// Plain-text projection for search, previews and older clients.
     public var body: String
+    /// Ordered text and inline markers. Nil means an older note, converted when first edited.
+    public var content: [NoteRun]?
     public var category: NoteCategory
     public var tags: [String]
     public var isPinned: Bool
@@ -77,6 +79,7 @@ public struct Note: Identifiable, Hashable, Codable, Sendable {
         isPinned: Bool = false,
         checklist: [ChecklistItem] = [],
         attachments: [FileRef] = [],
+        content: [NoteRun]? = nil,
         createdAt: Date = Date(),
         updatedAt: Date? = nil
     ) {
@@ -88,8 +91,10 @@ public struct Note: Identifiable, Hashable, Codable, Sendable {
         self.isPinned = isPinned
         self.checklist = checklist
         self.attachments = attachments
+        self.content = content
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
+        if let content { applyContent(content) }
     }
 
     public var completedChecklistCount: Int {
@@ -125,6 +130,7 @@ public struct Note: Identifiable, Hashable, Codable, Sendable {
         case id
         case title
         case body
+        case content = "rich_content"
         case category
         case tags
         case isPinned = "pinned"

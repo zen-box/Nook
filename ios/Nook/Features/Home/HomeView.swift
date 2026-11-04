@@ -22,8 +22,8 @@ private struct HomeContent: View {
                 ScreenHeader(title: "Today", subtitle: Greeting(now: now).text) {
                     CircleIconButton(
                         symbol: "bell",
-                        label: "Notifications",
-                        showsBadge: !store.reminders(now: now).isEmpty
+                        label: "Today's agenda",
+                        showsBadge: !store.todaysAgenda(now: now).isEmpty
                     ) {
                         router.present(.notifications)
                     }

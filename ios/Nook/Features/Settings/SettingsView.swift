@@ -106,6 +106,12 @@ struct SettingsView: View {
                     if vault.state == .locked {
                         Text("Unlock the vault before changing its master password.")
                     }
+                    if vault.usesQuickUnlock && vault.needsQuickUnlockEnrollment {
+                        Text("Unlock once with your master password to enable quick unlock on this device.")
+                    }
+                    if let error = vault.quickUnlockError {
+                        Text(error).foregroundStyle(Pastel.rose.strong)
+                    }
                 }
 
                 Section("Appearance") {
@@ -179,6 +185,7 @@ struct SettingsView: View {
                     .environment(store)
                     .environment(router)
                     .modifier(PrivacyShield())
+                    .modifier(AppAppearance())
             }
         }
         .onAppear {
@@ -191,6 +198,7 @@ struct SettingsView: View {
             backupURL = try? store.writeBackupFile()
         }
         .presentationCornerRadius(28)
+        .preferredColorScheme(appearance.colorScheme)
     }
 
     private func applyBudget(_ text: String) {
@@ -264,14 +272,17 @@ struct NotificationsView: View {
     var body: some View {
         NavigationStack {
             TimelineView(.everyMinute) { context in
-                let reminders = store.reminders(now: context.date)
+                let reminders = store.todaysAgenda(now: context.date)
                 ScrollView {
                     VStack(spacing: 12) {
+                        Text("Today's upcoming events. System notifications follow each event's reminder setting.")
+                            .font(NookFont.caption).foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         if reminders.isEmpty {
                             EmptyStateView(
                                 symbol: "bell.slash",
-                                title: "No notifications",
-                                message: "Reminders for today's events will show up here."
+                                title: "No upcoming events today",
+                                message: "Add a timed event and choose a reminder to receive a notification."
                             )
                             .card()
                         } else {
@@ -302,7 +313,7 @@ struct NotificationsView: View {
                 }
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Notifications")
+            .navigationTitle("Today's agenda")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

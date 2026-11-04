@@ -2,24 +2,19 @@ import PhotosUI
 import SwiftUI
 import NookCore
 
-/// Edits a note in place. Changes are saved as you type; a note left empty is dropped.
+/// A continuous document: text, checklists and photos share the cursor and undo history.
 struct NoteEditorView: View {
     let noteID: UUID
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var draft: Note?
+    @State private var session = NoteEditorSession()
     @State private var confirmDelete = false
     @State private var photoSelection: PhotosPickerItem?
     @State private var isLoadingPhoto = false
     @State private var isVisible = false
-    @FocusState private var focus: EditorFocus?
-
-    enum EditorFocus: Hashable {
-        case title
-        case body
-        case item(UUID)
-    }
+    @FocusState private var titleFocused: Bool
 
     var body: some View {
         Group {
@@ -32,297 +27,150 @@ struct NoteEditorView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button { session.undo() } label: { Image(systemName: "arrow.uturn.backward") }
+                    .disabled(!session.canUndo).accessibilityLabel(Text("Undo"))
+                Button { session.redo() } label: { Image(systemName: "arrow.uturn.forward") }
+                    .disabled(!session.canRedo).accessibilityLabel(Text("Redo"))
                 moreMenu
-            }
-        }
-        .onAppear {
-            isVisible = true
-            if draft == nil {
-                draft = store.note(id: noteID)
-                if draft?.isBlank == true {
-                    focus = .title
+                if session.isEditing || titleFocused {
+                    Button("Done") { titleFocused = false; session.endEditing() }
+                        .fontWeight(.semibold)
                 }
             }
         }
-        .onChange(of: draft) { _, newValue in
-            if let newValue {
-                store.saveNote(newValue)
-            }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if draft != nil { editingToolbar }
+        }
+        .onAppear {
+            isVisible = true
+            if draft == nil { draft = store.note(id: noteID) }
+            if draft?.isBlank == true { titleFocused = true }
+        }
+        .onChange(of: draft) { _, value in
+            guard isVisible, let value else { return }
+            store.saveNote(value, retainingAttachments: session.retainedFiles)
         }
         .onChange(of: photoSelection) { _, item in
             guard let item else { return }
             addPhoto(item)
         }
         .onDisappear {
+            // Commit composition before dropping the text view's callbacks.
+            session.endEditing()
             isVisible = false
-            if store.note(id: noteID) != nil, let draft { store.saveNote(draft) }
+            if store.note(id: noteID) != nil, let draft {
+                if store.saveNote(draft, retainingAttachments: session.retainedFiles) {
+                    store.discardUnreferencedPhotos(session.retainedFiles)
+                }
+            } else {
+                store.discardUnreferencedPhotos(session.retainedFiles)
+            }
+            session.onChange = nil
+            session.onPhotoError = nil
             store.discardIfBlank(noteID)
         }
         .confirmationDialog("Delete this note?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete Note", role: .destructive) {
-                if store.deleteNote(noteID) { dismiss() }
+                session.endEditing()
+                if store.deleteNote(noteID) { isVisible = false; dismiss() }
             }
         }
+    }
+
+    private func editor(_ note: Binding<Note>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Edited \(note.wrappedValue.updatedAt.formatted(.relative(presentation: .named)))")
+                .font(NookFont.caption).foregroundStyle(Theme.textSecondary)
+                .frame(maxWidth: .infinity).padding(.top, 6)
+            TextField("Title", text: note.title, axis: .vertical)
+                .font(.system(.title, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+                .focused($titleFocused).submitLabel(.next)
+                .onSubmit { titleFocused = false; session.beginEditing() }
+                .accessibilityIdentifier("note.title")
+                .padding(.horizontal, Metrics.screenPadding).padding(.top, 10)
+            NoteTextEditor(runs: note.wrappedValue.editorRuns, session: session, attachments: store.attachments) { runs in
+                guard isVisible else { return }
+                note.wrappedValue.applyContent(runs)
+            } onPhotoError: {
+                photoFailed()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var editingToolbar: some View {
+        HStack(spacing: 26) {
+            Menu {
+                Button("Heading") { session.setStyle(.heading) }
+                Button("Body") { session.setStyle(.body) }
+                Divider()
+                Button { session.toggleTrait(.traitBold) } label: { Label("Bold", systemImage: "bold") }
+                Button { session.toggleTrait(.traitItalic) } label: { Label("Italic", systemImage: "italic") }
+            } label: {
+                Image(systemName: "textformat").frame(width: 36, height: 42)
+            }
+            .accessibilityLabel(Text("Text Format"))
+            Button { titleFocused = false; session.toggleChecklist() } label: {
+                Image(systemName: "checklist").frame(width: 36, height: 42)
+            }
+            .accessibilityLabel(Text("Checklist"))
+            .accessibilityIdentifier("note.checklist")
+            PhotosPicker(selection: $photoSelection, matching: .images) {
+                Group {
+                    if isLoadingPhoto { ProgressView() }
+                    else { Image(systemName: "photo.badge.plus") }
+                }.frame(width: 36, height: 42)
+            }
+            .simultaneousGesture(TapGesture().onEnded { session.rememberPhotoSelection() })
+            .disabled(isLoadingPhoto)
+            .accessibilityLabel(Text("Add Photo"))
+            Spacer(minLength: 0)
+            Button { titleFocused = false; session.endEditing() } label: {
+                Image(systemName: "keyboard.chevron.compact.down").frame(width: 36, height: 42)
+            }
+            .accessibilityLabel(Text("Hide Keyboard"))
+        }
+        .font(.system(size: 21))
+        .foregroundStyle(Theme.accent)
+        .padding(.horizontal, 16).padding(.vertical, 3)
+        .background(.regularMaterial, in: Capsule())
+        .overlay { Capsule().strokeBorder(Theme.border, lineWidth: 1) }
+        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
     private var moreMenu: some View {
         Menu {
-            if draft?.isPinned == true {
-                Button {
-                    draft?.isPinned = false
-                } label: {
-                    Label("Unpin", systemImage: "pin.slash")
+            Menu {
+                ForEach(NoteCategory.allCases, id: \.self) { category in
+                    Button { draft?.category = category } label: {
+                        Label(category.label, systemImage: draft?.category == category ? "checkmark" : category.symbol)
+                    }
                 }
-            } else {
-                Button {
-                    draft?.isPinned = true
-                } label: {
-                    Label("Pin", systemImage: "pin")
-                }
+            } label: { Label("Category", systemImage: "folder") }
+            Button { draft?.isPinned.toggle() } label: {
+                if draft?.isPinned == true { Label("Unpin", systemImage: "pin.slash") }
+                else { Label("Pin", systemImage: "pin") }
             }
             Divider()
-            Button(role: .destructive) {
-                confirmDelete = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-        }
+            Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+        } label: { Image(systemName: "ellipsis.circle") }
         .accessibilityLabel(Text("More"))
-    }
-
-    private func editor(_ note: Binding<Note>) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 8) {
-                    categoryMenu(note)
-                    if note.wrappedValue.isPinned {
-                        Label("Pinned", systemImage: "pin.fill")
-                            .font(.system(.footnote, weight: .semibold))
-                            .foregroundStyle(Pastel.blue.strong)
-                            .padding(.horizontal, 10)
-                            .frame(height: 30)
-                            .background(Pastel.blue.soft, in: Capsule())
-                    }
-                    Spacer()
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    TextField("Title", text: note.title)
-                        .font(.system(.title, weight: .bold))
-                        .foregroundStyle(Theme.textPrimary)
-                        .focused($focus, equals: .title)
-                        .submitLabel(.next)
-                        .onSubmit { focus = .body }
-                    Text("Edited \(note.wrappedValue.updatedAt.formatted(.relative(presentation: .named)))")
-                        .font(NookFont.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                checklistSection(note)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Content")
-                        .font(NookFont.rowTitle)
-                        .foregroundStyle(Theme.textPrimary)
-                    TextField("Write something…", text: note.body, axis: .vertical)
-                        .font(.body)
-                        .foregroundStyle(Theme.textPrimary)
-                        .lineLimit(6...)
-                        .focused($focus, equals: .body)
-                        .card(padding: 14)
-                }
-                photosSection(note)
-            }
-            .padding(.horizontal, Metrics.screenPadding)
-            .padding(.top, 8)
-            .padding(.bottom, 40)
-        }
-        .scrollDismissesKeyboard(.interactively)
-    }
-
-    private func categoryMenu(_ note: Binding<Note>) -> some View {
-        let category = note.wrappedValue.category
-        return Menu {
-            ForEach(NoteCategory.allCases, id: \.self) { option in
-                Button {
-                    note.wrappedValue.category = option
-                } label: {
-                    Label(option.label, systemImage: option.symbol)
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: category.symbol)
-                Text(category.label)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-            }
-            .font(.system(.footnote, weight: .semibold))
-            .foregroundStyle(category.pastel.strong)
-            .padding(.horizontal, 12)
-            .frame(height: 30)
-            .background(category.pastel.soft, in: Capsule())
-        }
-        .accessibilityLabel(Text("Category"))
-    }
-
-    private func checklistSection(_ note: Binding<Note>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Checklist")
-                    .font(NookFont.rowTitle)
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                if !note.wrappedValue.checklist.isEmpty {
-                    Text(verbatim: "\(note.wrappedValue.completedChecklistCount)/\(note.wrappedValue.checklist.count)")
-                        .font(.system(.footnote, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
-            VStack(spacing: 0) {
-                ForEach(note.checklist) { $item in
-                    HStack(spacing: 10) {
-                        Button {
-                            withAnimation(.snappy) {
-                                item.isDone.toggle()
-                            }
-                        } label: {
-                            Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 20))
-                                .foregroundStyle(item.isDone ? Pastel.mint.strong : Theme.textTertiary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(item.isDone ? Text("Mark as not done") : Text("Mark as done"))
-                        TextField("To-do", text: $item.text)
-                            .font(.subheadline)
-                            .strikethrough(item.isDone, color: Theme.textTertiary)
-                            .foregroundStyle(item.isDone ? Theme.textSecondary : Theme.textPrimary)
-                            .focused($focus, equals: .item(item.id))
-                            .submitLabel(.next)
-                            .onSubmit {
-                                submit(item, in: note)
-                            }
-                        Button {
-                            remove(item.id, from: note)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.textTertiary)
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Text("Remove item"))
-                    }
-                    .padding(.vertical, 6)
-                }
-                Button {
-                    addItem(after: nil, to: note)
-                } label: {
-                    Label("Add item", systemImage: "plus")
-                        .font(.system(.subheadline, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .card(padding: 14)
-        }
-    }
-
-    private func photosSection(_ note: Binding<Note>) -> some View {
-        let photos = note.wrappedValue.attachments.filter { $0.kind == .image }
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Photos")
-                    .font(NookFont.rowTitle)
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                if isLoadingPhoto {
-                    ProgressView()
-                }
-                PhotosPicker(selection: $photoSelection, matching: .images) {
-                    Label("Add Photo", systemImage: "photo.badge.plus")
-                        .font(.system(.subheadline, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                }
-                .disabled(isLoadingPhoto)
-            }
-            if !photos.isEmpty {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
-                    ForEach(photos) { photo in
-                        AttachmentImage(ref: photo, thumbnail: false, cornerRadius: 14)
-                            .aspectRatio(1, contentMode: .fit)
-                            .overlay(alignment: .topTrailing) {
-                                Button {
-                                    removePhoto(photo, from: note)
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 20))
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, Color.black.opacity(0.45))
-                                }
-                                .buttonStyle(.plain)
-                                .padding(6)
-                                .accessibilityLabel(Text("Remove photo"))
-                            }
-                    }
-                }
-            }
-        }
     }
 
     private func addPhoto(_ item: PhotosPickerItem) {
         isLoadingPhoto = true
         Task {
-            defer {
-                isLoadingPhoto = false
-                photoSelection = nil
-            }
-            guard let data = try? await item.loadTransferable(type: Data.self) else {
-                router.showToast(ToastMessage(text: "Couldn't add the photo", symbol: "exclamationmark.triangle.fill", isWarning: true))
-                return
-            }
-            guard isVisible, store.note(id: noteID) != nil, var updated = draft else { return }
-            do {
-                let ref = try store.storePhoto(data)
-                updated.attachments.append(ref)
-                if store.saveNote(updated) {
-                    draft = updated
-                } else {
-                    store.discardPhoto(ref)
-                }
-            } catch {
-                router.showToast(ToastMessage(text: "Couldn't add the photo", symbol: "exclamationmark.triangle.fill", isWarning: true))
-            }
+            defer { isLoadingPhoto = false; photoSelection = nil }
+            guard let data = try? await item.loadTransferable(type: Data.self) else { photoFailed(); return }
+            guard isVisible, store.note(id: noteID) != nil else { return }
+            titleFocused = false
+            session.insertPhoto(data, atSavedSelection: true)
         }
     }
 
-    private func removePhoto(_ ref: FileRef, from note: Binding<Note>) {
-        note.wrappedValue.attachments.removeAll { $0.id == ref.id }
-    }
-
-    /// Return on a filled item adds the next one; on an empty item it removes it.
-    private func submit(_ item: ChecklistItem, in note: Binding<Note>) {
-        if item.text.trimmingCharacters(in: .whitespaces).isEmpty {
-            remove(item.id, from: note)
-        } else {
-            addItem(after: item.id, to: note)
-        }
-    }
-
-    private func addItem(after id: UUID?, to note: Binding<Note>) {
-        let newItem = ChecklistItem(text: "")
-        if let id, let index = note.wrappedValue.checklist.firstIndex(where: { $0.id == id }) {
-            note.wrappedValue.checklist.insert(newItem, at: index + 1)
-        } else {
-            note.wrappedValue.checklist.append(newItem)
-        }
-        focus = .item(newItem.id)
-    }
-
-    private func remove(_ id: UUID, from note: Binding<Note>) {
-        note.wrappedValue.checklist.removeAll { $0.id == id }
+    private func photoFailed() {
+        router.showToast(ToastMessage(text: "Couldn't add the photo", symbol: "exclamationmark.triangle.fill", isWarning: true))
     }
 }

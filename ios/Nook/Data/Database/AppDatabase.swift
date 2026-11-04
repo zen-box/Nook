@@ -127,6 +127,11 @@ final class AppDatabase: Sendable {
                 t.add(column: "memory_limit", .integer).notNull().defaults(to: 0)
             }
         }
+        migrator.registerMigration("v3-note-content") { db in
+            try db.alter(table: "note") { t in
+                t.add(column: "rich_content", .text)
+            }
+        }
         return migrator
     }
 }

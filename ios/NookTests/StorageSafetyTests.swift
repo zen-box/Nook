@@ -21,7 +21,7 @@ struct StorageSafetyTests {
         let ref = FileRef(name: "test.jpg", kind: .image, byteCount: 3)
         try Data([1, 2, 3]).write(to: attachments.imageURL(for: ref))
         try Data([1]).write(to: attachments.thumbnailURL(for: ref))
-        var note = Note(title: "Photo")
+        var note = Note(title: "Photo", category: .personal)
         note.attachments = [ref]
         #expect(store.saveNote(note))
         try writer.close()
@@ -41,7 +41,7 @@ struct StorageSafetyTests {
         let ref = FileRef(name: "test.jpg", kind: .image, byteCount: 3)
         try Data([1, 2, 3]).write(to: attachments.imageURL(for: ref))
         try Data([1]).write(to: attachments.thumbnailURL(for: ref))
-        var note = Note(title: "Photo")
+        var note = Note(title: "Photo", category: .personal)
         note.attachments = [ref]
         #expect(store.saveNote(note))
         note.attachments = []

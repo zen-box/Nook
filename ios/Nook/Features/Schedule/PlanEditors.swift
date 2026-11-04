@@ -27,6 +27,8 @@ struct TripEditorView: View {
                 Section("Details") {
                     TextField("What's the plan?", text: $summary, axis: .vertical)
                         .lineLimit(3...)
+                } footer: {
+                    Text("A trip groups related events. To receive reminders, add timed events to it and set their reminder times.")
                 }
                 if tripID != nil {
                     Section {
@@ -133,6 +135,7 @@ struct AnniversaryEditorView: View {
                     Toggle("Repeats every year", isOn: $repeatsYearly)
                 } footer: {
                     Text("Use the original date, such as the date of birth, to see how many years it has been.")
+                    Text("Anniversaries show a countdown; they don't send notifications yet.")
                 }
                 Section("Details") {
                     TextField("Notes", text: $notes, axis: .vertical)

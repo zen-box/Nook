@@ -6,7 +6,9 @@ import NookCore
 struct VaultView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.scenePhase) private var scenePhase
     @State private var search = ""
+    @State private var wasInBackground = false
 
     var body: some View {
         let vault = store.vault
@@ -50,6 +52,15 @@ struct VaultView: View {
         .onChange(of: router.selectedTab) { _, tab in
             if tab == .vault && vault.canUnlockQuickly {
                 Task { _ = await vault.unlockQuickly() }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { wasInBackground = true }
+            if phase == .active && wasInBackground {
+                wasInBackground = false
+                if router.selectedTab == .vault && vault.canUnlockQuickly {
+                    Task { _ = await vault.unlockQuickly() }
+                }
             }
         }
         .onChange(of: vault.state) { _, state in
@@ -251,9 +262,16 @@ private struct VaultUnlockCard: View {
                 }
             }
             if vault.canUnlockQuickly {
-                PrimaryButton(title: "Unlock with \(DeviceAuthentication.methodName)", symbol: DeviceAuthentication.methodSymbol) {
+                PrimaryButton(title: "Unlock with \(DeviceAuthentication.methodName)", symbol: DeviceAuthentication.methodSymbol, isWorking: vault.isUnlockingQuickly) {
                     Task { _ = await vault.unlockQuickly() }
                 }
+                .disabled(vault.isUnlockingQuickly || isWorking)
+            }
+            if let error = vault.quickUnlockError {
+                Text(error).font(NookFont.caption).foregroundStyle(Pastel.rose.strong)
+            } else if vault.usesQuickUnlock && vault.needsQuickUnlockEnrollment {
+                Text("Unlock once with your master password to enable quick unlock on this device.")
+                    .font(NookFont.caption).foregroundStyle(Theme.textSecondary)
             }
             PasswordField(prompt: "Master password", text: $password)
                 .onSubmit { unlock() }

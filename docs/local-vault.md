@@ -29,7 +29,7 @@
 
 此前开发版本 v1 使用 PBKDF2-HMAC-SHA256 / ChaCha20-Poly1305。现在只保留读取兼容：主密码验证后先解密全部旧记录，再将 v2 密文与新包裹密钥在同一事务内保存。升级失败保留旧数据；所有新写入使用 v2。
 
-快捷解锁的库密钥副本位于 Keychain，访问控制为 `WhenUnlockedThisDeviceOnly` 加 `userPresence`，由系统要求 Face ID、Touch ID 或设备密码。按钮可用性只查询属性，不读取秘密；真正读取在后台任务中调用 Keychain，由其执行认证。旧版无访问控制的副本会删除，主密码成功解锁后可以重建受保护副本。
+快捷解锁的库密钥副本位于 Keychain，访问控制为 `WhenUnlockedThisDeviceOnly` 加 `userPresence`。按钮可用性只查询属性，不读取秘密；受保护项在禁止交互查询时返回 `errSecInteractionNotAllowed` 也视为存在。真正解锁先显式调用 `LAContext.evaluatePolicy(.deviceOwnerAuthentication)`，再使用同一认证上下文读取受 ACL 保护的 Keychain 项，由系统要求 Face ID、Touch ID 或设备密码。失败时显示错误，取消认证保持锁定；钥匙串保存 / 读取错误会显示 OSStatus，便于识别重签后的访问权限问题。旧版无访问控制的副本会删除，主密码成功解锁后可以重建受保护副本。
 
 进入后台会清空库密钥、解密列表和编辑草稿；正在运行的解锁或修改密码任务通过操作序号失效，不能在后台锁定后重新打开密码库。非活跃时主界面和密码编辑弹层均显示隐私遮罩。Swift 值的释放不等于底层内存的可证明安全擦除。
 

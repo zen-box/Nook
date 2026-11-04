@@ -1,6 +1,8 @@
 import CryptoKit
 import Foundation
+import LocalAuthentication
 import Observation
+import Security
 import NookCore
 
 enum VaultError: Error {
@@ -26,6 +28,8 @@ final class VaultStore {
     /// Entries that could not be decrypted with the current key.
     private(set) var unreadableCount = 0
     private(set) var storageFailed = false
+    private(set) var isUnlockingQuickly = false
+    private(set) var quickUnlockError: String?
 
     /// Keep a Face ID copy of the vault key in the keychain.
     var usesQuickUnlock: Bool {
@@ -33,8 +37,9 @@ final class VaultStore {
             defaults.set(usesQuickUnlock, forKey: Self.quickUnlockKey)
             if !usesQuickUnlock {
                 keychain.delete()
+                quickUnlockError = nil
             } else if let key {
-                try? keychain.store(key)
+                rememberForQuickUnlock(key)
             }
         }
     }
@@ -73,6 +78,10 @@ final class VaultStore {
     /// Whether Face ID (or the passcode) can open the vault right now.
     var canUnlockQuickly: Bool {
         state == .locked && !storageFailed && usesQuickUnlock && DeviceAuthentication.isAvailable && keychain.containsProtectedKey
+    }
+
+    var needsQuickUnlockEnrollment: Bool {
+        state != .needsSetup && !keychain.containsProtectedKey
     }
 
     func items(in category: VaultCategory?) -> [VaultItem] {
@@ -149,22 +158,32 @@ final class VaultStore {
     /// Face ID / passcode unlock with the keychain copy of the key. Returns false when that is
     /// not possible; the master password still works.
     func unlockQuickly() async -> Bool {
-        guard canUnlockQuickly else { return false }
+        guard canUnlockQuickly, !isUnlockingQuickly else { return false }
+        isUnlockingQuickly = true
+        quickUnlockError = nil
+        defer { isUnlockingQuickly = false }
         operation += 1
         let ticket = operation
         let keychain = self.keychain
         let reason = String(localized: "Unlock your vault")
-        let vaultKey = await Task.detached(priority: .userInitiated) { keychain.load(reason: reason) }.value
-        guard ticket == operation, let vaultKey else { return false }
         do {
+            let vaultKey = try await Task.detached(priority: .userInitiated) { try await keychain.load(reason: reason) }.value
+            guard ticket == operation else { return false }
             guard let record = try database.vaultKey(), record.version == VaultCrypto.keyVersion,
                   VaultCrypto.isKey(vaultKey, matching: record.keyCheck, version: record.version) else {
                 keychain.delete()
+                quickUnlockError = String(localized: "Unlock once with your master password to enable quick unlock on this device.")
                 return false
             }
             try open(with: vaultKey, rememberForQuickUnlock: false)
             return true
-        } catch { return false }
+        } catch {
+            guard ticket == operation else { return false }
+            if let auth = error as? LAError, [.userCancel, .systemCancel, .appCancel].contains(auth.code) { return false }
+            if let failure = error as? KeychainError, failure.status == errSecUserCanceled { return false }
+            reportQuickUnlockFailure(error)
+            return false
+        }
     }
 
     func lock() {
@@ -208,6 +227,7 @@ final class VaultStore {
         unreadableCount = 0
         counts = [:]
         storageFailed = false
+        quickUnlockError = nil
         state = .needsSetup
     }
 
@@ -227,7 +247,22 @@ final class VaultStore {
         state = .unlocked
         storageFailed = false
         if usesQuickUnlock && rememberForQuickUnlock {
-            try? keychain.store(vaultKey)
+            self.rememberForQuickUnlock(vaultKey)
+        }
+    }
+
+    private func rememberForQuickUnlock(_ key: SymmetricKey) {
+        do {
+            try keychain.store(key)
+            quickUnlockError = nil
+        } catch { reportQuickUnlockFailure(error) }
+    }
+
+    private func reportQuickUnlockFailure(_ error: Error) {
+        if let error = error as? KeychainError {
+            quickUnlockError = String(localized: "Quick unlock unavailable (Keychain \(Int(error.status))). Use your master password.")
+        } else {
+            quickUnlockError = String(localized: "Device authentication failed. Use your master password or try again.")
         }
     }
 

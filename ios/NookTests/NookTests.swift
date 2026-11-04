@@ -67,7 +67,7 @@ struct SampleDataTests {
 @MainActor
 struct PersistenceTests {
     @Test func migrationsAreApplied() throws {
-        #expect(try AppDatabase.makeInMemory().appliedMigrations() == ["v1", "v2-vault-argon2id"])
+        #expect(try AppDatabase.makeInMemory().appliedMigrations() == ["v1", "v2-vault-argon2id", "v3-note-content"])
     }
 
     @Test func recordsSurviveARestart() throws {
