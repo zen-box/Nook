@@ -20,6 +20,7 @@ final class AgentSession {
     private(set) var question: AgentQuestion?
     private(set) var plan: AgentPlan?
     private(set) var isWorking = false
+    private(set) var isUpdatingReminders = false
     private(set) var error: String?
     private(set) var result: String?
     private(set) var undoPlan: AgentPlan?
@@ -46,7 +47,7 @@ final class AgentSession {
         messages.append(AIMessage(role: "user", text: text, images: images))
         isWorking = true
         requestTask = Task {
-            defer { if ticket == generation { isWorking = false } }
+            defer { if ticket == generation { isWorking = false; requestTask = nil } }
             do {
                 let client = AIClient(configuration: configuration, apiKey: key)
                 for _ in 0..<6 {
@@ -74,7 +75,8 @@ final class AgentSession {
                             case "prepare_actions":
                                 guard let values = call.arguments["actions"] else { throw AgentPlanError.invalid("actions") }
                                 let actions = try values.decoded([AgentAction].self)
-                                let draft = try AgentPlanner.prepare(actions, records: known,
+                                guard actions.allSatisfy({ action in action.operation == .create || known.contains { $0.kind == action.kind && $0.id == action.id } }) else { throw AgentPlanError.missingRecord }
+                                let draft = try AgentPlanner.prepare(actions, records: read(),
                                     summary: call.arguments["summary"]?.string ?? "Review changes", currency: currency())
                                 plan = draft; question = nil
                                 output = "Draft prepared for confirmation. Nothing saved yet."; shouldReturn = true
@@ -145,17 +147,17 @@ final class AgentSession {
                 return [.event, .task, .anniversary].contains(m.kind) && m.after?[key] != nil && m.after?[key] != .null
             }
             if needsReminder {
-                isWorking = true
+                isWorking = true; isUpdatingReminders = true
                 Task {
                     let feedback = await reminderFeedback()
                     if !feedback.isEmpty { result = feedback }
-                    isWorking = false
+                    isWorking = false; isUpdatingReminders = false
                 }
             }
         } catch { self.error = error.localizedDescription }
     }
     func undo() {
-        guard let undoPlan else { return }
+        guard !isWorking, let undoPlan else { return }
         do {
             try commit(undoPlan); self.undoPlan = nil
             known = []; result = String(localized: "Last action undone.")
@@ -163,6 +165,9 @@ final class AgentSession {
         } catch { self.error = error.localizedDescription }
     }
     func cancel() {
+        // Confirmation commits synchronously. Waiting for notification feedback is not an
+        // unsaved request and must never be reported as cancelled or rolled back.
+        if isUpdatingReminders { return }
         generation += 1; requestTask?.cancel(); requestTask = nil; isWorking = false
         plan = nil; question = nil; error = nil; result = String(localized: "Cancelled. Nothing saved.")
         messages.append(AIMessage(role: "user", text: "用户已取消当前草稿，尚未保存。后续不要自动恢复或执行它。"))

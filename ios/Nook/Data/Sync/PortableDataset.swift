@@ -50,7 +50,7 @@ extension AppStore {
         return byID.values.sorted { $0.id.uuidString < $1.id.uuidString }
     }
     /// Validate every file before installing any record. Content-address checks happen before here.
-    func installPortable(_ dataset: PortableDataset, syncState: Data? = nil) throws {
+    func installPortable(_ dataset: PortableDataset, syncState: Data? = nil, credentialAccount: String? = nil) throws {
         guard dataset.format == "nook.transfer", dataset.version == 1 else { throw SyncError.wrongLibrary }
         let previousValues = try portableValues()
         var backup = NookBackup(tasks: [])
@@ -106,6 +106,7 @@ extension AppStore {
             if let key = vault?.key { try key.save(db) }
             for record in vault?.records ?? [] { try record.save(db) }
             if let syncState { try db.execute(sql: "INSERT OR REPLACE INTO app_metadata (key,value) VALUES ('sync.state',?)", arguments: [syncState]) }
+            if let credentialAccount { try db.execute(sql: "INSERT OR REPLACE INTO app_metadata (key,value) VALUES ('sync.credentials',?)", arguments: [Data(credentialAccount.utf8)]) }
         }
         if let p = dataset.values["preferences/library"] {
             displayName = p["displayName"]?.string ?? displayName

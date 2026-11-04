@@ -190,7 +190,7 @@ public struct AIClient: Sendable {
             guard !model.contains("/"), !model.contains(":"), !model.contains("?") else { throw AIError.noModel }
             suffix = "models/\(model):generateContent"; body.removeValue(forKey: "model")
             body["system_instruction"] = ["parts": [["text": system]]]
-            body["contents"] = messages.map { message -> [String: Any] in
+            body["contents"] = coalescing(messages.map { message -> [String: Any] in
                 var parts: [[String: Any]] = message.text.isEmpty ? [] : [["text": message.text]]
                 if message.role == "tool" {
                     parts = [["functionResponse": ["name": message.toolName ?? "", "response": ["result": message.text]]]]
@@ -199,13 +199,13 @@ public struct AIClient: Sendable {
                     parts += message.calls.map { $0.providerPart?.foundation as? [String: Any] ?? ["functionCall": ["name": $0.name, "args": $0.arguments.foundation]] }
                 }
                 return ["role": message.role == "assistant" ? "model" : "user", "parts": parts]
-            }
+            }, contentKey: "parts")
             body["tools"] = [["functionDeclarations": schemas.map {
                 ["name": $0["name"]!.foundation, "description": $0["description"]!.foundation, "parametersJsonSchema": $0["parameters"]!.foundation]
             }]]
         case .messages:
             suffix = "messages"; body["system"] = system; body["max_tokens"] = 4096
-            body["messages"] = messages.map { message -> [String: Any] in
+            body["messages"] = coalescing(messages.map { message -> [String: Any] in
                 var content: [[String: Any]] = message.text.isEmpty ? [] : [["type": "text", "text": message.text]]
                 if message.role == "tool" { content = [["type": "tool_result", "tool_use_id": message.toolCallID ?? "", "content": message.text]] }
                 else {
@@ -213,7 +213,7 @@ public struct AIClient: Sendable {
                     content += message.calls.map { ["type": "tool_use", "id": $0.id, "name": $0.name, "input": $0.arguments.foundation] }
                 }
                 return ["role": message.role == "assistant" ? "assistant" : "user", "content": content]
-            }
+            }, contentKey: "content")
             body["tools"] = schemas.map { ["name": $0["name"]!.foundation, "description": $0["description"]!.foundation, "input_schema": $0["parameters"]!.foundation] }
         }
         return try request(url: endpoint(suffix), body: body)
@@ -221,6 +221,18 @@ public struct AIClient: Sendable {
     private func chatContent(_ message: AIMessage) -> Any {
         guard !message.images.isEmpty else { return message.text }
         return [["type": "text", "text": message.text]] + message.images.map { ["type": "image_url", "image_url": ["url": "data:\($0.mimeType);base64,\($0.data.base64EncodedString())"]] as [String: Any] }
+    }
+    /// Parallel function results must be returned together in the next user turn. The
+    /// same grouping also handles a user's answer immediately following ask_user.
+    private func coalescing(_ messages: [[String: Any]], contentKey: String) -> [[String: Any]] {
+        var result: [[String: Any]] = []
+        for message in messages {
+            if let last = result.last, last["role"] as? String == message["role"] as? String,
+               let old = last[contentKey] as? [[String: Any]], let new = message[contentKey] as? [[String: Any]] {
+                result[result.count - 1][contentKey] = old + new
+            } else { result.append(message) }
+        }
+        return result
     }
     public func parse(_ value: JSONValue) throws -> AIResponse {
         var text: [String] = []; var calls: [AIToolCall] = []

@@ -87,7 +87,7 @@ struct SyncSettingsView: View {
         .navigationTitle("S3 Sync")
         .onAppear {
             configuration = sync.configuration ?? S3Configuration()
-            if let bytes = try? SecretStore.read("sync.s3"), let credentials = try? JSONDecoder().decode(S3Credentials.self, from: bytes) {
+            if let account = try? sync.savedCredentialAccount(), let bytes = try? SecretStore.read(account), let credentials = try? JSONDecoder().decode(S3Credentials.self, from: bytes) {
                 accessKey = credentials.accessKey; secretKey = credentials.secretKey; sessionToken = credentials.sessionToken
             }
         }

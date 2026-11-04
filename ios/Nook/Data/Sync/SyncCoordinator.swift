@@ -22,6 +22,7 @@ struct SyncLocalState: Codable, Sendable {
     var attachments: [SyncAttachment]
     var seen: [String]
     var history: [SyncHistoryItem]? = nil
+    var configuration: S3Configuration? = nil
 }
 struct SyncHistoryItem: Identifiable, Codable, Sendable {
     var id: String
@@ -41,7 +42,7 @@ final class SyncCoordinator {
     private let deviceID: UUID
     private var automaticSync: Task<Void, Never>?
     var configuration: S3Configuration? {
-        store.defaults.data(forKey: "sync.configuration").flatMap { try? JSONDecoder().decode(S3Configuration.self, from: $0) }
+        return state?.configuration ?? store.defaults.data(forKey: "sync.configuration").flatMap { try? JSONDecoder().decode(S3Configuration.self, from: $0) }
     }
     init(store: AppStore) {
         self.store = store
@@ -75,14 +76,16 @@ final class SyncCoordinator {
         }
         if let state, state.library.id != library.id { throw SyncError.wrongLibrary }
         try SecretStore.write(key, account: "sync.root.\(library.id)")
-        try SecretStore.write(JSONEncoder().encode(credentials), account: "sync.s3")
+        let credentialAccount = try savedCredentialAccount()
+        try SecretStore.write(JSONEncoder().encode(credentials), account: credentialAccount)
         store.defaults.set(try JSONEncoder().encode(config), forKey: "sync.configuration")
         if state == nil {
             var document = SyncDocument(libraryID: library.id)
             if create && existing == nil { try document.capture(store.portableValues(), baseline: [:], deviceID: deviceID) }
             state = SyncLocalState(library: library, document: document, baseline: [:], attachments: [], seen: [])
-            try persist()
         }
+        state?.configuration = config
+        try persist()
         try Data().write(to: store.attachments.folder.appending(path: ".retain-sync-history"), options: .atomic)
         status = String(localized: "Connected. Sync now to upload or restore your library.")
         return existing == nil ? SyncCrypto.code(key) : nil
@@ -96,12 +99,19 @@ final class SyncCoordinator {
         let (client, key, saved) = try connection(); var copy = saved
         try copy.document.capture(values, baseline: copy.baseline, deviceID: deviceID)
         copy.baseline = values
+        // The old phone must reserve every exported device counter too. Otherwise its
+        // next offline edit could reuse a clock already carried to the new phone.
+        state = copy; try persist()
         return .init(configuration: client.configuration, credentials: client.credentials, rootKey: key, state: copy)
     }
     private func connection() throws -> (S3Client, Data, SyncLocalState) {
-        guard let state, let config = configuration, let encoded = try SecretStore.read("sync.s3"),
+        guard let state, let config = configuration, let encoded = try SecretStore.read(savedCredentialAccount()),
               let root = try SecretStore.read("sync.root.\(state.library.id)") else { throw SyncError.notConfigured }
         return (S3Client(configuration: config, credentials: try JSONDecoder().decode(S3Credentials.self, from: encoded)), root, state)
+    }
+    func savedCredentialAccount() throws -> String {
+        if let bytes = try store.database.metadata("sync.credentials"), let name = String(data: bytes, encoding: .utf8), name.hasPrefix("sync.s3.") { return name }
+        return "sync.s3"
     }
     func sync() async {
         guard !isWorking else { return }
@@ -244,6 +254,9 @@ final class SyncCoordinator {
     }
     func disconnect() {
         guard !isWorking else { return }
+        automaticSync?.cancel()
+        state?.configuration = nil
+        do { try persist() } catch { self.error = error.localizedDescription; return }
         store.defaults.removeObject(forKey: "sync.configuration")
         status = String(localized: "Disconnected. Local data and cloud history are kept.")
     }

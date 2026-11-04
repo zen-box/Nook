@@ -17,11 +17,9 @@ extension AppDatabase {
                 } else {
                     switch mutation.kind {
                     case .note:
-                        try db.execute(sql: "UPDATE trip SET note_id = NULL WHERE note_id = ?", arguments: [mutation.id])
                         _ = try Note.deleteOne(db, key: mutation.id)
                     case .event: _ = try ScheduleEvent.deleteOne(db, key: mutation.id)
                     case .trip:
-                        try db.execute(sql: "UPDATE event SET plan_id = NULL WHERE plan_id = ?", arguments: [mutation.id])
                         _ = try TripPlan.deleteOne(db, key: mutation.id)
                     case .anniversary: _ = try Anniversary.deleteOne(db, key: mutation.id)
                     case .transaction: _ = try LedgerEntry.deleteOne(db, key: mutation.id)

@@ -58,14 +58,19 @@ enum BackupArchive {
             return .init(dataset: .init(values: manifest.values, files: []), folder: folder, refs: manifest.refs)
         } catch { try? FileManager.default.removeItem(at: folder); throw error }
     }
-    @MainActor static func install(_ staged: StagedArchive, into store: AppStore) throws {
+    @MainActor static func install(_ staged: StagedArchive, into store: AppStore, syncState: Data? = nil, credentialAccount: String? = nil) throws {
         for ref in staged.refs {
             let source = attachmentURL(ref, folder: staged.folder), target = store.attachments.fileURL(for: ref)
             if FileManager.default.fileExists(atPath: target.path) {
-                guard try Data(contentsOf: source) == Data(contentsOf: target) else { throw SyncError.missingAttachment }
+                if try Data(contentsOf: source) != Data(contentsOf: target) {
+                    let quarantine = store.attachments.folder.appending(path: "quarantine", directoryHint: .isDirectory)
+                    try FileManager.default.createDirectory(at: quarantine, withIntermediateDirectories: true)
+                    try FileManager.default.copyItem(at: target, to: quarantine.appending(path: "\(ref.id)-\(UUID()).damaged"))
+                    try Data(contentsOf: source).write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                }
             } else { try FileManager.default.copyItem(at: source, to: target) }
         }
-        try store.installPortable(staged.dataset)
+        try store.installPortable(staged.dataset, syncState: syncState, credentialAccount: credentialAccount)
     }
     static func attachmentURL(_ ref: FileRef, folder: URL) -> URL {
         folder.appending(path: "\(ref.id.uuidString.lowercased()).\(ref.kind == .image ? "jpg" : ref.kind == .audio ? "m4a" : "bin")")

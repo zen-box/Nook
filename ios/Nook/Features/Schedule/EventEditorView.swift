@@ -166,11 +166,11 @@ struct EventEditorView: View {
             start = selectedStart
             reminder = event.reminderMinutes
             recurrence = event.recurrence
-            transport = event.transport
+            transport = event.instance(starting: selectedStart).transport
             tripID = event.planID
             if event.isAllDay {
                 // Stored ends are exclusive (next midnight); show the last day instead.
-                end = selectedStart.addingTimeInterval(max(0, event.effectiveEnd.timeIntervalSince(event.start) - 1))
+                end = event.instance(starting: selectedStart).effectiveEnd.addingTimeInterval(-1)
             } else {
                 end = selectedStart.addingTimeInterval(event.end.map { $0.timeIntervalSince(event.start) } ?? 3600)
             }
@@ -220,6 +220,8 @@ struct EventEditorView: View {
             if let existing = originalEvent, existing.recurrence != nil {
                 guard let chosenScope else { deletingSeries = false; scopeDialog = true; return }
                 var fields = try JSONValue.from(event).object!
+                let baseline = try JSONValue.from(existing.instance(starting: selectedOccurrence ?? existing.start))
+                fields = fields.filter { baseline[$0.key] != $0.value }
                 for key in ["id", "created_at", "updated_at", "series_id", "occurrence_start"] { fields.removeValue(forKey: key) }
                 if recurrence == existing.recurrence { fields.removeValue(forKey: "recurrence") }
                 let action = AgentAction(kind: .event, operation: .update, id: existing.id, fields: fields,

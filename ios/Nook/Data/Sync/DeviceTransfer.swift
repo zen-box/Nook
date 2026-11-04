@@ -54,13 +54,17 @@ final class DeviceTransfer {
     private var pairing: TransferPairing?
     private var privateKey = Curve25519.KeyAgreement.PrivateKey()
     private var key: Data?
-    private var sent: UInt64 = 0, received: UInt64 = 0
-    private var approved = false, peerApproved = false, started = false
+    private var sent: UInt64 = 0
+    private var received: UInt64 = 0
+    private var approved = false
+    private var peerApproved = false
+    private var started = false
     private var running: Task<Void, Never>?
     private var timeout: Task<Void, Never>?
     private var incoming: URL?
     private var handle: FileHandle?
-    private var expected: Int64 = 0, transferred: Int64 = 0
+    private var expected: Int64 = 0
+    private var transferred: Int64 = 0
     private let queue = DispatchQueue(label: "com.nook.personal.transfer")
     private var generation = 0
 
@@ -200,7 +204,7 @@ final class DeviceTransfer {
                 guard receiver, approved, peerApproved, incoming == nil, let size = message.size, size > 0, size <= 20 * 1024 * 1024 * 1024 else { throw SyncError.invalidHistory }
                 let folder = FileManager.default.temporaryDirectory
                 if let capacity = try? folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage,
-                   capacity < size + 100 * 1024 * 1024 { throw CocoaError(.fileWriteOutOfSpace) }
+                   capacity < size * 3 + 100 * 1024 * 1024 { throw CocoaError(.fileWriteOutOfSpace) }
                 let file = folder.appending(path: "Nook-Receiving-\(UUID()).nookbackup")
                 guard FileManager.default.createFile(atPath: file.path, contents: nil, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]) else { throw CocoaError(.fileWriteUnknown) }
                 incoming = file; handle = try FileHandle(forWritingTo: file); expected = size; transferred = 0
@@ -227,8 +231,7 @@ final class DeviceTransfer {
             var clean = staged
             let settings = try clean.dataset.values.removeValue(forKey: "migration/s3")?.decoded(S3TransferSettings.self)
             if let settings { try SyncCrypto.validate(settings.state.library, key: settings.rootKey) }
-            try BackupArchive.install(clean, into: store)
-            if let settings { try store.installTransferredSync(settings) }
+            try store.installTransferredArchive(clean, settings: settings)
             phase = "completed"
             let ticket = generation
             Task {

@@ -75,7 +75,7 @@ public enum AgentPlanner {
             if action.operation != .create, existing == nil { throw AgentPlanError.missingRecord }
             if let existing, action.kind == .event,
                let event = try? existing.data.decoded(ScheduleEvent.self), event.recurrence != nil {
-                mutations += try recurring(action, event: event, before: existing.data, now: now)
+                mutations += try recurring(action, event: event, before: existing.data, records: records, now: now)
                 continue
             }
             let id = action.operation == .create ? UUIDv7.make() : existing!.id
@@ -88,6 +88,24 @@ public enum AgentPlanner {
             }
             mutations.append(AgentMutation(kind: action.kind, id: id, before: existing?.data,
                                            after: action.operation == .delete ? nil : .object(data)))
+        }
+        // Relationship repairs belong to the preview and receipt too, so Undo can restore
+        // every affected record. Never hide them inside a database deletion callback.
+        let deletions = mutations.filter { $0.after == nil }
+        for deletion in deletions where deletion.kind == .note || deletion.kind == .trip {
+            let dependentKind: AgentRecordKind = deletion.kind == .note ? .trip : .event
+            let field = deletion.kind == .note ? "note_id" : "plan_id"
+            for record in records where record.kind == dependentKind && record.data[field]?.string.flatMap(UUID.init(uuidString:)) == deletion.id {
+                if let index = mutations.firstIndex(where: { $0.kind == record.kind && $0.id == record.id }) {
+                    guard var after = mutations[index].after?.object else { continue }
+                    after[field] = .null; after[updatedKey(record.kind)] = .string(RFC3339.string(from: now))
+                    mutations[index].after = .object(after)
+                } else {
+                    var after = record.data.object!
+                    after[field] = .null; after[updatedKey(record.kind)] = .string(RFC3339.string(from: now))
+                    mutations.append(.init(kind: record.kind, id: record.id, before: record.data, after: .object(after)))
+                }
+            }
         }
         let keys = mutations.map { "\($0.kind.rawValue)/\($0.id)" }
         guard Set(keys).count == keys.count else { throw AgentPlanError.invalid("overlapping changes; combine them first") }
@@ -167,10 +185,17 @@ public enum AgentPlanner {
             guard t.reminderMinutes == nil || (t.dueAt != nil && (0...525_600).contains(t.reminderMinutes!)) else { throw AgentPlanError.invalid("task reminder needs a due date") }
         }
     }
-    private static func recurring(_ action: AgentAction, event: ScheduleEvent, before: JSONValue, now: Date) throws -> [AgentMutation] {
+    private static func recurring(_ action: AgentAction, event: ScheduleEvent, before: JSONValue, records: [AgentRecord], now: Date) throws -> [AgentMutation] {
         guard let scope = action.scope, ["this", "future", "series"].contains(scope) else { throw AgentPlanError.scopeRequired }
+        let overrides = try records.filter { $0.kind == .event }.compactMap { record -> (AgentRecord, ScheduleEvent)? in
+            let child = try record.data.decoded(ScheduleEvent.self)
+            return child.seriesID == event.id ? (record, child) : nil
+        }
         var original = event
         if scope == "series" {
+            if action.operation == .delete {
+                return [.init(kind: .event, id: event.id, before: before, after: nil)] + overrides.map { .init(kind: .event, id: $0.0.id, before: $0.0.data, after: nil) }
+            }
             var fields = action.fields
             if let occurrence = action.occurrenceStart, let moved = fields["start"]?.string.flatMap(RFC3339.date) {
                 let shift = moved.timeIntervalSince(occurrence)
@@ -182,22 +207,43 @@ public enum AgentPlanner {
             var data = before.object!
             try merge(fields, into: &data, kind: .event); data["updated_at"] = .string(RFC3339.string(from: now))
             try validate(.object(data), kind: .event)
-            return [AgentMutation(kind: .event, id: event.id, before: before, after: action.operation == .delete ? nil : .object(data))]
+            var result = [AgentMutation(kind: .event, id: event.id, before: before, after: .object(data))]
+            for (record, child) in overrides {
+                var patch = action.fields
+                patch.removeValue(forKey: "recurrence")
+                let selected = action.occurrenceStart ?? event.start
+                if let moved = patch["start"]?.string.flatMap(RFC3339.date) {
+                    patch["start"] = .string(RFC3339.string(from: child.start.addingTimeInterval(moved.timeIntervalSince(selected))))
+                }
+                if let finish = patch["end"]?.string.flatMap(RFC3339.date) {
+                    patch["end"] = .string(RFC3339.string(from: finish.addingTimeInterval(child.start.timeIntervalSince(selected))))
+                }
+                var value = record.data.object!
+                try merge(patch, into: &value, kind: .event)
+                value["updated_at"] = .string(RFC3339.string(from: now))
+                try validate(.object(value), kind: .event)
+                result.append(.init(kind: .event, id: record.id, before: record.data, after: .object(value)))
+            }
+            return result
         }
         guard let occurrence = action.occurrenceStart, let rule = event.recurrence,
               let zone = TimeZone(identifier: rule.timeZoneID) else { throw AgentPlanError.scopeRequired }
         let day = LocalDate(occurrence, timeZone: zone)
-        guard rule.starts(from: event.start, in: DateInterval(start: occurrence, duration: 1)).contains(occurrence) else { throw AgentPlanError.invalid("occurrence no longer exists") }
+        let existingOverride = overrides.first { $0.1.occurrenceStart == occurrence }
+        guard existingOverride != nil || rule.starts(from: event.start, in: DateInterval(start: occurrence, duration: 1)).contains(occurrence) else { throw AgentPlanError.invalid("occurrence no longer exists") }
         var changedRule = rule
-        if scope == "this" { changedRule.excludedDates.append(day) }
+        if scope == "this" { if !changedRule.excludedDates.contains(day) { changedRule.excludedDates.append(day) } }
         else { changedRule.endsOn = day.adding(days: -1) }
         original.recurrence = changedRule; original.updatedAt = now
         var result = [AgentMutation(kind: .event, id: event.id, before: before, after: try .from(original))]
-        if action.operation == .delete { return result }
-        var copy = event
-        copy.id = UUIDv7.make(); copy.start = occurrence
-        copy.end = event.end.map { occurrence.addingTimeInterval($0.timeIntervalSince(event.start)) }
-        copy.createdAt = now; copy.updatedAt = now
+        if action.operation == .delete {
+            result += overrides.filter { scope == "this" ? $0.1.occurrenceStart == occurrence : ($0.1.occurrenceStart ?? $0.1.start) >= occurrence }
+                .map { .init(kind: .event, id: $0.0.id, before: $0.0.data, after: nil) }
+            return result
+        }
+        var copy = scope == "this" ? existingOverride?.1 ?? event.instance(starting: occurrence) : event.instance(starting: occurrence)
+        copy.id = scope == "this" ? existingOverride?.1.id ?? UUIDv7.make() : UUIDv7.make()
+        copy.createdAt = scope == "this" ? existingOverride?.1.createdAt ?? now : now; copy.updatedAt = now
         if scope == "this" { copy.recurrence = nil; copy.seriesID = event.id; copy.occurrenceStart = occurrence }
         else {
             copy.seriesID = nil; copy.occurrenceStart = nil
@@ -213,7 +259,25 @@ public enum AgentPlanner {
         else if fields["recurrence"] == before["recurrence"] { fields.removeValue(forKey: "recurrence") }
         try merge(fields, into: &data, kind: .event)
         try validate(.object(data), kind: .event)
-        result.append(AgentMutation(kind: .event, id: copy.id, before: nil, after: .object(data)))
+        result.append(AgentMutation(kind: .event, id: copy.id, before: scope == "this" ? existingOverride?.0.data : nil, after: .object(data)))
+        if scope == "future" {
+            for (record, child) in overrides where (child.occurrenceStart ?? child.start) >= occurrence {
+                var patch = action.fields
+                patch.removeValue(forKey: "recurrence")
+                if let moved = patch["start"]?.string.flatMap(RFC3339.date) {
+                    patch["start"] = .string(RFC3339.string(from: child.start.addingTimeInterval(moved.timeIntervalSince(occurrence))))
+                }
+                if let finish = patch["end"]?.string.flatMap(RFC3339.date) {
+                    patch["end"] = .string(RFC3339.string(from: finish.addingTimeInterval(child.start.timeIntervalSince(occurrence))))
+                }
+                var value = record.data.object!
+                try merge(patch, into: &value, kind: .event)
+                value["series_id"] = .string(copy.id.uuidString)
+                value["updated_at"] = .string(RFC3339.string(from: now))
+                try validate(.object(value), kind: .event)
+                result.append(.init(kind: .event, id: record.id, before: record.data, after: .object(value)))
+            }
+        }
         return result
     }
 }

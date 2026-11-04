@@ -21,7 +21,10 @@ public struct SyncVersion: Hashable, Codable, Sendable, Identifiable {
     public var payload: JSONValue?
     public var editedAt: Date
     public init(id: UUID = UUID(), clock: SyncClock, payload: JSONValue?, editedAt: Date = Date()) {
-        self.id = id; self.clock = clock; self.payload = payload; self.editedAt = editedAt
+        self.id = id; self.clock = clock; self.payload = payload
+        // Versions are compared across devices and persisted as millisecond RFC3339.
+        // Normalize at creation so a JSON round-trip cannot make the same ID disagree.
+        self.editedAt = RFC3339.date(from: RFC3339.string(from: editedAt)) ?? editedAt
     }
 }
 public struct SyncRecord: Hashable, Codable, Sendable, Identifiable {

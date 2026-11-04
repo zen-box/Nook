@@ -60,12 +60,26 @@ final class AppStore {
         if let syncStorage { return syncStorage }
         let coordinator = SyncCoordinator(store: self); syncStorage = coordinator; return coordinator
     }
-    func installTransferredSync(_ settings: S3TransferSettings) throws {
+    func installTransferredArchive(_ archive: StagedArchive, settings: S3TransferSettings?) throws {
+        guard !syncCoordinator.isWorking else { throw SyncError.changedDuringSync }
+        guard let settings else { try BackupArchive.install(archive, into: self); return }
+        try SyncCrypto.validate(settings.state.library, key: settings.rootKey)
+        guard settings.state.document.libraryID == settings.state.library.id else { throw SyncError.wrongLibrary }
+        var incomingState = settings.state
+        incomingState.configuration = settings.configuration
+        let config = try JSONEncoder().encode(settings.configuration)
+        let state = try NookJSON.makeEncoder().encode(incomingState)
+        // Stage credentials under a fresh account. A single SQLite transaction selects
+        // them together with the imported records/state; interruption keeps the old
+        // connection selected. Neither phone's existing credentials are overwritten.
+        let account = "sync.s3.\(UUID())"
         try SecretStore.write(settings.rootKey, account: "sync.root.\(settings.state.library.id)")
-        try SecretStore.write(JSONEncoder().encode(settings.credentials), account: "sync.s3")
-        try database.setMetadata(NookJSON.makeEncoder().encode(settings.state), key: "sync.state")
-        defaults.set(try JSONEncoder().encode(settings.configuration), forKey: "sync.configuration")
-        try Data().write(to: attachments.folder.appending(path: ".retain-sync-history"), options: .atomic)
+        try SecretStore.write(JSONEncoder().encode(settings.credentials), account: account)
+        do {
+            try Data().write(to: attachments.folder.appending(path: ".retain-sync-history"), options: .atomic)
+            try BackupArchive.install(archive, into: self, syncState: state, credentialAccount: account)
+        } catch { try? SecretStore.delete(account); throw error }
+        defaults.set(config, forKey: "sync.configuration")
         syncStorage = nil
     }
 
@@ -324,7 +338,8 @@ final class AppStore {
     }
 
     func events(inTrip trip: TripPlan) -> [ScheduleEvent] {
-        events.filter { $0.planID == trip.id }.sorted(by: ScheduleQuery.agendaOrder)
+        let range = DateInterval(start: trip.startDate.startDate(in: timeZone), end: trip.endDate.adding(days: 1).startDate(in: timeZone))
+        return events.filter { $0.planID == trip.id }.flatMap { $0.occurrences(in: range) }.sorted(by: ScheduleQuery.agendaOrder)
     }
 
     @discardableResult

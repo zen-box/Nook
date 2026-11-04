@@ -53,7 +53,7 @@ struct AgentView: View {
                             if session.isWorking { HStack { ProgressView(); Text("Working on your request…").font(.footnote) } }
                             if let result = session.result {
                                 Text(verbatim: result).foregroundStyle(Theme.accent)
-                                if session.undoPlan != nil { Button("Undo last action") { session.undo() } }
+                                if session.undoPlan != nil { Button("Undo last action") { session.undo() }.disabled(session.isWorking) }
                             }
                             if let error = session.error { Text(verbatim: error).foregroundStyle(Pastel.rose.strong) }
                         }
@@ -111,7 +111,9 @@ struct AgentView: View {
                     .disabled(session?.isWorking == true)
                 TextField("What would you like to do?", text: $input, axis: .vertical).lineLimit(1...5).focused($focused)
                     .padding(10).background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                if session?.isWorking == true {
+                if session?.isUpdatingReminders == true {
+                    ProgressView().frame(height: 36)
+                } else if session?.isWorking == true {
                     Button { session?.cancel() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
                 } else {
                     Button { send(input) } label: { Image(systemName: "arrow.up.circle.fill").font(.title) }

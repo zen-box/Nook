@@ -43,6 +43,7 @@ struct EncryptedBackupView: View {
             Button("Restore Backup", role: .destructive) {
                 guard let staged else { return }
                 do {
+                    guard !store.syncCoordinator.isWorking else { throw SyncError.changedDuringSync }
                     try BackupArchive.install(staged, into: store)
                     message = String(localized: "Encrypted backup restored.")
                     try? FileManager.default.removeItem(at: staged.folder); self.staged = nil

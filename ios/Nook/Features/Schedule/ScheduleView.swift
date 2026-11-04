@@ -408,7 +408,7 @@ private struct TripCard: View {
             }
             if !events.isEmpty {
                 VStack(spacing: 8) {
-                    ForEach(events) { event in
+                    ForEach(events, id: \.displayID) { event in
                         Button {
                             router.present(event.recurrence != nil ? .editOccurrence(event.id, event.start) : .editEvent(event.id))
                         } label: {
