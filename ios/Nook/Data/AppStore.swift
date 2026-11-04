@@ -29,6 +29,7 @@ final class AppStore {
     private(set) var ledger: [LedgerEntry] = []
     private(set) var tasks: [TaskItem] = []
     var dataRevision = 0
+    var widgetSharingStatus: WidgetPublisher.Status = .notPublished
 
     /// Goes up each time a change could not be saved, so the screen can say so.
     private(set) var saveFailures = 0

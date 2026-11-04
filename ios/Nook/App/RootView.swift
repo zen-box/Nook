@@ -20,9 +20,8 @@ struct RootView: View {
                     .accessibilityHidden(!isActive)
             }
             if router.isTabBarVisible {
-                FloatingTabBar(selection: router.selectedTab) { tab in
-                    router.select(tab)
-                }
+                FloatingTabBar(selection: router.selectedTab, onSelect: { router.select($0) },
+                               onAssistant: { router.present(.assistant) })
                 .ignoresSafeArea(.keyboard)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -63,6 +62,10 @@ struct RootView: View {
             case "tasks": router.present(.tasks)
             case "expense": router.present(.newExpense)
             case "note": router.startNewNote(in: store)
+            case "notes": router.select(.notes)
+            case "schedule": router.showSchedule()
+            case "trips": router.showSchedule(segment: .trips)
+            case "finance": router.select(.finance)
             case "anniversaries": router.showSchedule(segment: .anniversaries)
             default: break
             }
@@ -156,13 +159,16 @@ private struct RouteDestination: View {
 
 private struct SheetContent: View {
     let sheet: AppSheet
+    @Environment(AppStore.self) private var store
 
     var body: some View {
         switch sheet {
         case .newEvent(let day):
             EventEditorView(mode: .create(day))
         case .editEvent(let id):
-            EventEditorView(mode: .edit(id))
+            if let event = store.event(id: id), event.transport != nil, event.recurrence == nil {
+                TripEditorView(tripID: event.planID, transportEventID: id)
+            } else { EventEditorView(mode: .edit(id)) }
         case .editOccurrence(let id, let date):
             EventEditorView(mode: .occurrence(id, date))
         case .newTrip:

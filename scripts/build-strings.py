@@ -332,6 +332,9 @@ ZH = {
 
 # key -> (English "one", English "other", Simplified Chinese)
 PLURALS = {
+    "%lld notes": ("%lld note", "%lld notes", "%lld 条便签"),
+    "%lld days": ("%lld day", "%lld days", "%lld 天"),
+    "%lld tasks remaining": ("%lld task remaining", "%lld tasks remaining", "还有 %lld 项任务"),
     "%lld events": ("%lld event", "%lld events", "%lld 个日程"),
     "%lld events today": ("%lld event today", "%lld events today", "今天有 %lld 个日程"),
     "%lld years": ("%lld year", "%lld years", "%lld 周年"),
@@ -365,7 +368,7 @@ def unit(value):
 def catalog():
     strings = {}
     for key, value in ZH.items():
-        strings[key] = {"localizations": {"zh-Hans": unit(value)}}
+        strings[key] = {"localizations": {"en": unit(key), "zh-Hans": unit(value)}}
     for key, (one, other, zh) in PLURALS.items():
         strings[key] = {
             "localizations": {
@@ -383,7 +386,7 @@ def normalize(key):
 def missing_keys(root):
     known = {normalize(key) for key in list(ZH) + list(PLURALS)}
     found = {}
-    for path in sorted((root / SOURCE_DIR).rglob("*.swift")):
+    for path in sorted(list((root / SOURCE_DIR).rglob("*.swift")) + list((root / "ios/WidgetShared").rglob("*.swift")) + list((root / "ios/NookWidgets").rglob("*.swift"))):
         if path.name in SKIP_FILES:
             continue
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -413,7 +416,15 @@ def main():
                    "Anniversary Countdown", "Keep an important date close.", "Nook Shortcuts", "Ask Nook", "Expense", "Note",
                    "Open the assistant, add an expense or write a note."]
     widget_catalog = catalog()
-    widget_catalog["strings"] = {key: value for key, value in widget_catalog["strings"].items() if key in widget_keys}
+    # Include the literals used by shared layouts and extension metadata, not just
+    # the original widget's keys. Normalize Swift interpolation to catalogue keys.
+    wanted = set(widget_keys)
+    for directory in [root / "ios/WidgetShared", root / "ios/NookWidgets"]:
+        for path in directory.rglob("*.swift"):
+            for value in re.findall(STRING, path.read_text(encoding="utf-8")):
+                normalized = normalize(INTERPOLATION.sub("%@", value))
+                wanted.update(key for key in widget_catalog["strings"] if normalize(key) == normalized)
+    widget_catalog["strings"] = {key: value for key, value in widget_catalog["strings"].items() if key in wanted}
     widget_output = root / "ios/NookWidgets/Resources/Localizable.xcstrings"
     widget_output.parent.mkdir(parents=True, exist_ok=True)
     widget_output.write_text(json.dumps(widget_catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

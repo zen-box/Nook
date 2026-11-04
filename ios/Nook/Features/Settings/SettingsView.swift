@@ -123,6 +123,14 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                Section {
+                    LabeledContent("App Language", value: Bundle.main.preferredLocalizations.first?.hasPrefix("zh") == true ? "简体中文" : "English")
+                    Link(destination: URL(string: UIApplication.openSettingsURLString)!) {
+                        Label("Change App Language", systemImage: "globe")
+                    }.accessibilityIdentifier("settings.language")
+                } header: { Text("Language") } footer: {
+                    Text("Choose English or Simplified Chinese in iOS Settings. Nook follows your preferred app language.")
+                }
 
                 Section("Assistant") {
                     NavigationLink("AI Settings") { AISettingsView() }
@@ -130,10 +138,22 @@ struct SettingsView: View {
                 Section {
                     Toggle("Show Details in Widgets", isOn: $widgetDetails)
                         .onChange(of: widgetDetails) { _, _ in WidgetPublisher.publish(store) }
-                    if !WidgetPublisher.isAvailable {
-                        Text("Widget sharing is unavailable. The re-signed app and widget need matching App Groups entitlements.").font(.footnote).foregroundStyle(Theme.textSecondary)
+                    switch store.widgetSharingStatus {
+                    case .updated(let date):
+                        LabeledContent("Shared Data Updated") { Text(date, style: .time) }
+                    case .unavailable:
+                        Text("Widget sharing is unavailable. The re-signed app and widget need matching App Groups entitlements.")
+                            .font(.footnote).foregroundStyle(Pastel.rose.strong)
+                    case .failed:
+                        Text("Widget data could not be updated.").foregroundStyle(Pastel.rose.strong)
+                    case .notPublished: Text("Widget data has not been published yet.").foregroundStyle(Theme.textSecondary)
                     }
-                } header: { Text("Widgets") } footer: { Text("Widgets share only schedule and task summaries. Passwords, keys and note contents are never shared.") }
+                    Button("Refresh Widget Data") { WidgetPublisher.publish(store) }.accessibilityIdentifier("widgets.refresh")
+                    NavigationLink("Widget Previews") { WidgetPreviewView() }
+                    Text(verbatim: WidgetSnapshot.group).font(.caption.monospaced()).foregroundStyle(Theme.textSecondary).textSelection(.enabled)
+                } header: { Text("Widgets") } footer: {
+                    Text("Choose Schedule, Trips, Recent Note or Anniversary when adding a widget. Details are hidden by default. Note bodies, passwords and keys are never shared.")
+                }
 
                 Section {
                     NavigationLink("S3 Sync") { SyncSettingsView() }

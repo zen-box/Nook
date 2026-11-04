@@ -403,6 +403,8 @@ private struct TripCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint(Text("Edit trip"))
+            .accessibilityLabel(Text(trip.title))
+            .accessibilityIdentifier("trip.edit.\(trip.id)")
             ProgressCapsule(value: progress, pastel: .blue)
             if !trip.summary.isEmpty {
                 Text(trip.summary)

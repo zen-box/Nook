@@ -9,6 +9,10 @@ struct AISettingsView: View {
     @State private var models: [AIModel] = []
     @State private var search = ""
     @State private var isLoading = false
+    @State private var isTesting = false
+    @State private var testSucceeded = false
+    @State private var testMessage: String?
+    @State private var work: Task<Void, Never>?
     @State private var message: String?
     @Environment(\.dismiss) private var dismiss
 
@@ -23,9 +27,28 @@ struct AISettingsView: View {
                 TextField("Model ID", text: $configuration.model).textInputAutocapitalization(.never).autocorrectionDisabled()
                 Button { fetchModels() } label: {
                     HStack { Text("Fetch Models"); if isLoading { Spacer(); ProgressView() } }
-                }.disabled(isLoading || key.isEmpty)
+                }.disabled(isBusy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: { Text("AI Connection") } footer: {
                 Text("Your selected text and images are sent directly to this API. The vault is never available to the assistant. API keys stay in this device's Keychain.")
+            }
+            Section {
+                Button { testConnection() } label: {
+                    HStack {
+                        Label("Test Connection", systemImage: "network")
+                        Spacer()
+                        if isTesting { ProgressView() }
+                    }
+                }
+                .accessibilityIdentifier("ai.testConnection")
+                .disabled(isBusy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || configuration.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if let testMessage {
+                    Label { Text(verbatim: testMessage).textSelection(.enabled) } icon: {
+                        Image(systemName: testSucceeded ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    }.foregroundStyle(testSucceeded ? Color.green : Color.red)
+                        .font(.footnote).accessibilityIdentifier("ai.testResult")
+                }
+            } footer: {
+                Text("Sends a short request to the selected model using the values above, without saving them. No personal records are sent. API usage may be billed.")
             }
             if let message { Section { Text(verbatim: message).font(.footnote) } }
             if !models.isEmpty {
@@ -60,6 +83,16 @@ struct AISettingsView: View {
             if configuration.baseURL == old.defaultBase { configuration.baseURL = new.defaultBase }
             models = []; message = nil
         }
+        .onChange(of: configuration) { old, new in
+            cancelWork()
+            if old.baseURL != new.baseURL || old.apiType != new.apiType { models = []; search = "" }
+        }
+        .onChange(of: key) { _, _ in cancelWork() }
+        .onDisappear { cancelWork() }
+    }
+    private var isBusy: Bool { isLoading || isTesting }
+    private func cancelWork() {
+        work?.cancel(); work = nil; isLoading = false; isTesting = false; testMessage = nil
     }
     private var filteredModels: [AIModel] {
         let words = search.split(whereSeparator: \.isWhitespace).map(String.init)
@@ -67,13 +100,47 @@ struct AISettingsView: View {
     }
     private func fetchModels() {
         isLoading = true; message = nil
-        Task {
-            defer { isLoading = false }
+        let captured = configuration, capturedKey = key
+        work = Task {
+            defer { if !Task.isCancelled { isLoading = false } }
             do {
-                models = try await AIClient(configuration: configuration, apiKey: key).models()
-                AISettings.cache(models, for: configuration)
+                let values = try await AIClient(configuration: captured, apiKey: capturedKey).models()
+                try Task.checkCancellation()
+                guard configuration == captured, key == capturedKey else { return }
+                models = values
+                AISettings.cache(models, for: captured)
                 if models.isEmpty { message = String(localized: "No models returned. Enter a model ID manually.") }
-            } catch { message = error.localizedDescription + " " + String(localized: "You can still enter the model ID manually.") }
+            } catch is CancellationError { } catch {
+                if !Task.isCancelled { message = error.localizedDescription + " " + String(localized: "You can still enter the model ID manually.") }
+            }
+        }
+    }
+    private func testConnection() {
+        isTesting = true; testMessage = nil
+        let captured = configuration, capturedKey = key, started = Date()
+        work = Task {
+            defer { if !Task.isCancelled { isTesting = false } }
+            do {
+                let reply = try await AIClient(configuration: captured, apiKey: capturedKey).testConnection()
+                try Task.checkCancellation()
+                guard configuration == captured, key == capturedKey else { return }
+                guard reply.calls.isEmpty, !reply.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AIError.invalidResponse }
+                let seconds = Date().timeIntervalSince(started).formatted(.number.precision(.fractionLength(1)))
+                testSucceeded = true
+                testMessage = String(localized: "\(captured.model) responded in \(seconds) s")
+            } catch is CancellationError { } catch {
+                if !Task.isCancelled {
+                    testSucceeded = false
+                    if let aiError = error as? AIError, case .http(let status) = aiError {
+                        switch status {
+                        case 401, 403: testMessage = String(localized: "Authentication failed. Check the API key and model access.")
+                        case 404: testMessage = String(localized: "Endpoint or model not found. Check the API type, base URL and model ID.")
+                        case 429: testMessage = String(localized: "The service reported a quota or rate limit. Check your balance or try again later.")
+                        default: testMessage = error.localizedDescription
+                        }
+                    } else { testMessage = error.localizedDescription }
+                }
+            }
         }
     }
     private func save() {

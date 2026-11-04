@@ -3,6 +3,7 @@ import NookCore
 
 struct TripEditorView: View {
     let tripID: UUID?
+    var transportEventID: UUID? = nil
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
@@ -12,12 +13,19 @@ struct TripEditorView: View {
     @State private var end = Date().addingTimeInterval(3 * 86_400)
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var transport: TransportDetails?
+    @State private var departure = Date()
+    @State private var arrival = Date().addingTimeInterval(3600)
+    @State private var reminder: Int? = 30
+    @State private var originalTrip: TripPlan?
+    @State private var originalJourney: ScheduleEvent?
+    @State private var error: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Trip name", text: $title)
+                    TextField("Trip name", text: $title).accessibilityIdentifier("trip.title")
                     TextField("Destination", text: $destination)
                 }
                 Section {
@@ -30,8 +38,30 @@ struct TripEditorView: View {
                 } header: {
                     Text("Details")
                 } footer: {
-                    Text("A trip groups related events. To receive reminders, add timed events to it and set their reminder times.")
+                    Text("Add transport below for departure reminders. You can also group other calendar events in this trip.")
                 }
+                Section {
+                    Toggle("Transport Details", isOn: Binding(get: { transport != nil }, set: { transport = $0 ? TransportDetails() : nil }))
+                        .accessibilityIdentifier("trip.transport")
+                } footer: {
+                    if originalJourney != nil { Text("Turning this off removes this timed transport segment when you save the trip.") }
+                }
+                if transport != nil {
+                    Section("Departure and Arrival") {
+                        DatePicker("Departure", selection: $departure)
+                            .environment(\.timeZone, TimeZone(identifier: transport?.departureTimeZone ?? "") ?? store.timeZone)
+                        DatePicker("Arrival", selection: $arrival, in: departure...)
+                            .environment(\.timeZone, TimeZone(identifier: transport?.arrivalTimeZone ?? "") ?? store.timeZone)
+                        Picker("Reminder", selection: $reminder) {
+                            Text("None").tag(Int?.none)
+                            ForEach(EventEditorView.reminderOptions, id: \.self) { value in
+                                Text(EventEditorView.reminderLabel(value)).tag(Int?.some(value))
+                            }
+                        }
+                    }
+                    TransportFields(details: $transport, showsToggle: false)
+                }
+                if let error { Text(verbatim: error).foregroundStyle(Pastel.rose.strong) }
                 if tripID != nil {
                     Section {
                         Button("Delete Trip", role: .destructive) {
@@ -41,6 +71,7 @@ struct TripEditorView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle(tripID == nil ? Text("New Trip") : Text("Edit Trip"))
             .navigationBarTitleDisplayMode(.inline)
@@ -50,6 +81,7 @@ struct TripEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
+                        .accessibilityIdentifier("trip.save")
                         .fontWeight(.semibold)
                         .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -71,6 +103,7 @@ struct TripEditorView: View {
                 end = newStart
             }
         }
+        .onChange(of: departure) { _, value in if arrival < value { arrival = value.addingTimeInterval(3600) } }
         .presentationDetents([.large])
         .presentationCornerRadius(28)
     }
@@ -78,12 +111,22 @@ struct TripEditorView: View {
     private func load() {
         guard !loaded else { return }
         loaded = true
-        guard let tripID, let trip = store.trip(id: tripID) else { return }
-        title = trip.title
-        destination = trip.destination ?? ""
-        summary = trip.summary
-        start = trip.startDate.noon
-        end = trip.endDate.noon
+        if let tripID, let trip = store.trip(id: tripID) {
+            originalTrip = trip
+            title = trip.title; destination = trip.destination ?? ""; summary = trip.summary
+            start = trip.startDate.noon; end = trip.endDate.noon
+        }
+        let journey = transportEventID.flatMap { store.event(id: $0) }
+            ?? store.events.filter { tripID != nil && $0.planID == tripID && $0.transport != nil }.sorted { $0.start < $1.start }.first
+        if let journey {
+            originalJourney = journey; transport = journey.transport
+            departure = journey.start; arrival = journey.end ?? journey.start.addingTimeInterval(3600)
+            reminder = journey.reminderMinutes
+            if originalTrip == nil {
+                title = journey.title; destination = journey.transport?.arrival ?? ""
+                start = journey.start; end = journey.end ?? journey.start
+            }
+        }
     }
 
     private func save() {
@@ -93,7 +136,7 @@ struct TripEditorView: View {
         let first = LocalDate(start, timeZone: zone)
         let last = max(LocalDate(end, timeZone: zone), first)
         var trip: TripPlan
-        if let tripID, let existing = store.trip(id: tripID) {
+        if let existing = originalTrip {
             trip = existing
         } else {
             trip = TripPlan(title: trimmed, startDate: first, endDate: last)
@@ -104,8 +147,19 @@ struct TripEditorView: View {
         trip.startDate = first
         trip.endDate = last
         trip.summary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard store.saveTrip(trip) else { return }
-        dismiss()
+        do {
+            var journey: ScheduleEvent?
+            if let transport {
+                var segment = originalJourney ?? ScheduleEvent(title: trimmed, start: departure)
+                segment.title = originalJourney?.title ?? trimmed
+                segment.start = departure; segment.end = arrival; segment.transport = transport
+                segment.reminderMinutes = reminder
+                journey = segment
+            }
+            let plan = try TripJourneyPlan.make(trip: trip, previousTrip: originalTrip, journey: journey, previousJourney: originalJourney)
+            try store.applyAssistantPlan(plan)
+            dismiss()
+        } catch { self.error = error.localizedDescription }
     }
 }
 

@@ -3,6 +3,24 @@
   "strings": {
     "%lld days": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days"
+                }
+              }
+            }
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -11,8 +29,54 @@
         }
       }
     },
+    "%lld notes": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld note"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld notes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 条便签"
+          }
+        }
+      }
+    },
     "%lld tasks remaining": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld task remaining"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tasks remaining"
+                }
+              }
+            }
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -21,8 +85,30 @@
         }
       }
     },
+    "All day": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All day"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全天"
+          }
+        }
+      }
+    },
     "Anniversary": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anniversary"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -33,6 +119,12 @@
     },
     "Anniversary Countdown": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anniversary Countdown"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -43,6 +135,12 @@
     },
     "Ask Nook": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Nook"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -51,8 +149,30 @@
         }
       }
     },
+    "Event": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日程"
+          }
+        }
+      }
+    },
     "Expense": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expense"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -61,8 +181,58 @@
         }
       }
     },
+    "In %lld days": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "In %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "In %lld days"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 天"
+          }
+        }
+      }
+    },
+    "In progress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In progress"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "进行中"
+          }
+        }
+      }
+    },
     "Keep an important date close.": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep an important date close."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -71,8 +241,30 @@
         }
       }
     },
+    "Keep your latest note title nearby. Note bodies stay in Nook.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep your latest note title nearby. Note bodies stay in Nook."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速查看最近的便签标题，正文仅保存在 Nook 内。"
+          }
+        }
+      }
+    },
     "Next Anniversary": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Anniversary"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -83,6 +275,12 @@
     },
     "Next Event": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Event"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -91,8 +289,110 @@
         }
       }
     },
+    "Next Trip": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Trip"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一段行程"
+          }
+        }
+      }
+    },
+    "No anniversaries yet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No anniversaries yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有纪念日"
+          }
+        }
+      }
+    },
+    "No notes yet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No notes yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有便签"
+          }
+        }
+      }
+    },
+    "No shared data yet. Refresh Widget Data in Nook Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No shared data yet. Refresh Widget Data in Nook Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未收到共享数据，请在 Nook 设置中刷新小组件数据。"
+          }
+        }
+      }
+    },
+    "No upcoming events": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No upcoming events"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无待开始日程"
+          }
+        }
+      }
+    },
+    "No upcoming trips": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No upcoming trips"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无待出发行程"
+          }
+        }
+      }
+    },
     "Nook Shortcuts": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nook Shortcuts"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -103,6 +403,12 @@
     },
     "Note": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -111,8 +417,30 @@
         }
       }
     },
+    "Now": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在进行"
+          }
+        }
+      }
+    },
     "Open Nook to add an anniversary.": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Nook to add an anniversary."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -121,8 +449,30 @@
         }
       }
     },
+    "Open Nook to refresh dates.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Nook to refresh dates."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 Nook 刷新日期。"
+          }
+        }
+      }
+    },
     "Open Nook to set up widget sharing.": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Nook to set up widget sharing."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -133,6 +483,12 @@
     },
     "Open the assistant, add an expense or write a note.": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the assistant, add an expense or write a note."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -141,8 +497,78 @@
         }
       }
     },
+    "Recent Note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Note"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近便签"
+          }
+        }
+      }
+    },
+    "Schedule": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日程"
+          }
+        }
+      }
+    },
+    "Shared data could not be read. Unlock your iPhone and refresh Widget Data in Nook.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shared data could not be read. Unlock your iPhone and refresh Widget Data in Nook."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取共享数据，请解锁手机，并在 Nook 中刷新小组件数据。"
+          }
+        }
+      }
+    },
+    "The app and widget must be signed with the same App Group.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app and widget must be signed with the same App Group."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主应用和小组件需要使用相同的 App Group 权限签名。"
+          }
+        }
+      }
+    },
     "Today": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -153,6 +579,12 @@
     },
     "Today in Nook": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today in Nook"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -161,12 +593,82 @@
         }
       }
     },
+    "Trips": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trips"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程"
+          }
+        }
+      }
+    },
+    "Upcoming calendar events, with a task count. Details are hidden until you enable them in Nook.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upcoming calendar events, with a task count. Details are hidden until you enable them in Nook."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看即将开始的日程和待办数量。在 Nook 中开启详情前，隐藏具体标题。"
+          }
+        }
+      }
+    },
+    "Widget sharing permission is missing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget sharing permission is missing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件共享权限不可用。"
+          }
+        }
+      }
+    },
     "Your next event and tasks. Details are hidden until you enable them in Nook.": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your next event and tasks. Details are hidden until you enable them in Nook."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "查看日程与任务，详细内容需在 Nook 中主动开启显示。"
+          }
+        }
+      }
+    },
+    "Your next trip, departure time and travel details.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your next trip, departure time and travel details."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看下一段行程、出发时间和交通信息。"
           }
         }
       }

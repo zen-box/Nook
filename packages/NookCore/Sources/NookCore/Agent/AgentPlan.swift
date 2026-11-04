@@ -82,9 +82,28 @@ public enum AgentPlanner {
             guard targets.insert("\(action.kind.rawValue)/\(id)").inserted else { throw AgentPlanError.invalid("duplicate target") }
             var data = try existing?.data.object ?? template(action.kind, id: id, currency: currency, now: now)
             if action.operation != .delete {
-                try merge(action.fields, into: &data, kind: action.kind)
+                var fields = action.fields
+                let journey = action.kind == .trip ? fields.removeValue(forKey: "journey") : nil
+                try merge(fields, into: &data, kind: action.kind)
                 data[updatedKey(action.kind)] = .string(RFC3339.string(from: now))
                 try validate(.object(data), kind: action.kind)
+                if action.kind == .trip, let journey {
+                    let trip = try JSONValue.object(data).decoded(TripPlan.self)
+                    let previous = try records.filter { $0.kind == .event }.compactMap { try $0.data.decoded(ScheduleEvent.self) }
+                        .filter { $0.planID == trip.id && $0.transport != nil }.sorted { $0.start < $1.start }.first
+                    var segment: ScheduleEvent?
+                    if journey != .null {
+                        guard let patch = journey.object, Set(patch.keys).isSubset(of: ["title", "start", "end", "notes", "reminder_minutes", "transport"]),
+                              previous != nil || patch["start"] != nil else { throw AgentPlanError.invalid("journey fields and departure time") }
+                        var payload = try JSONValue.from(previous ?? ScheduleEvent(title: trip.title, start: now, transport: .init(kind: .other), createdAt: now)).object!
+                        try merge(patch, into: &payload, kind: .event)
+                        segment = try JSONValue.object(payload).decoded(ScheduleEvent.self)
+                    }
+                    let tripPlan = try TripJourneyPlan.make(trip: trip, previousTrip: try existing?.data.decoded(TripPlan.self),
+                        journey: segment, previousJourney: previous, now: now)
+                    mutations += tripPlan.mutations
+                    continue
+                }
             }
             mutations.append(AgentMutation(kind: action.kind, id: id, before: existing?.data,
                                            after: action.operation == .delete ? nil : .object(data)))
@@ -341,7 +360,7 @@ public enum AgentTools {
     event: title,start,end,all_day,location,notes,category(work/travel/personal/health/other),reminder_minutes,plan_id,recurrence,transport.
     recurrence={frequency:daily/weekly/monthly/yearly,interval:1,weekdays:[ISO Monday1..Sunday7],timeZoneID:the supplied device timezone,excludedDates:[], optional endsOn:YYYY-MM-DD, optional occurrenceLimit:integer}.
     transport={kind:train/flight/other,number,departure,arrival,departureTimeZone,arrivalTimeZone,terminal,gate,platform,carriage,seat, optional boardingAt:RFC3339}; all listed strings except boardingAt are required, empty string allowed.
-    trip: title,destination,start_date,end_date(YYYY-MM-DD),summary. Trips group events; an 08:00 departure must also have an event, linked with plan_id only if a known trip ID exists.
+    trip: title,destination,start_date,end_date(YYYY-MM-DD),summary, optional journey={start:RFC3339,end:RFC3339,reminder_minutes,transport}. Use trip.journey for new train/flight details and timed departures; the client links and saves the transport segment atomically, including for a brand-new trip. Do not invent plan_id. A trip's journey edits its first transport segment; search and update the specific event for other segments. journey:null removes that segment.
     anniversary: title,date(YYYY-MM-DD),repeat_rule(yearly/none),category(birthday/anniversary/personal/project/custom),description,show_countdown,reminder={hour:9,minute:0,daysBefore:[0,1,7]}.
     transaction: title,type(expense/income/transfer),amount_minor(positive integer),currency(ISO uppercase),category(food/travel/shopping/transport/housing/entertainment/health/salary/others),note,occurred_at.
     task: title,notes,dueAt(RFC3339),reminderMinutes,isCompleted.

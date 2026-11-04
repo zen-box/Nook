@@ -82,7 +82,12 @@ struct EventEditorView: View {
                     }
                 }
                 RecurrenceFields(rule: $recurrence, start: start)
-                TransportFields(details: $transport)
+                if let transport {
+                    Section("Travel Information") {
+                        Text(verbatim: transport.readableSummary)
+                        Text("Travel details are managed in Trips.").font(.footnote).foregroundStyle(Theme.textSecondary)
+                    }
+                }
                 Text("Local notifications follow your saved times. Allow notifications in iOS Settings. Past reminder times are skipped.")
                     .font(.footnote).foregroundStyle(Theme.textSecondary)
                 if !store.trips.isEmpty {

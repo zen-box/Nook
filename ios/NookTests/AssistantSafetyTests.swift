@@ -66,4 +66,22 @@ struct AssistantSafetyTests {
         #expect(reopened.events.first?.transport?.departure == "上海虹桥")
         #expect(reopened.events.first?.transport?.seat == "05A")
     }
+    @Test func tripTransportSavesTogetherAndAConflictRollsBackTheTrip() throws {
+        let db = try AppDatabase.makeInMemory(), store = store(db)
+        let day = LocalDate(isoString: "2026-11-05")!
+        var trip = TripPlan(title: "Trip", startDate: day, endDate: day)
+        let event = ScheduleEvent(title: "Train", start: day.date(hour: 8, in: .current), transport: .init(number: "G123"))
+        let create = try TripJourneyPlan.make(trip: trip, previousTrip: nil, journey: event, previousJourney: nil)
+        try store.applyAssistantPlan(create)
+        let savedTrip = try #require(store.trip(id: trip.id)), savedEvent = try #require(store.event(id: event.id))
+        #expect(savedEvent.planID == trip.id)
+        trip = savedTrip; trip.title = "Must roll back"
+        var changed = savedEvent; changed.transport?.seat = "05A"
+        let plan = try TripJourneyPlan.make(trip: trip, previousTrip: savedTrip, journey: changed, previousJourney: savedEvent)
+        var concurrent = savedEvent; concurrent.notes = "Edited elsewhere"
+        #expect(store.saveEvent(concurrent))
+        #expect(throws: AgentPlanError.self) { try store.applyAssistantPlan(plan) }
+        #expect(try db.loadSnapshot().trips.first?.title == savedTrip.title)
+        #expect(try db.loadSnapshot().events.first?.notes == "Edited elsewhere")
+    }
 }

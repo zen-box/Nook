@@ -13,6 +13,9 @@ final class NookUITests: XCTestCase {
         XCTAssertTrue(app.scrollViews["screen.home"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["home.upcoming"].exists)
         XCTAssertTrue(app.buttons["home.recentNote"].exists)
+        let assistant = app.buttons["tab.assistant"]
+        XCTAssertTrue(assistant.exists)
+        XCTAssertEqual(assistant.frame.midX, app.frame.midX, accuracy: 2)
     }
 
     @MainActor
@@ -47,13 +50,15 @@ final class NookUITests: XCTestCase {
         launch(app)
         XCTAssertTrue(app.buttons["home.assistant"].waitForExistence(timeout: 15))
         capture(app, "首页-中文")
-        app.buttons["home.assistant"].tap()
+        app.buttons["tab.assistant"].tap()
         XCTAssertTrue(app.navigationBars["Nook 事务助手"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["想处理什么事情？"].exists)
         capture(app, "事务助手-中文")
         app.buttons["assistant.settings"].tap()
         XCTAssertTrue(app.textFields["模型 ID"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["获取模型列表"].exists)
+        XCTAssertTrue(app.buttons["ai.testConnection"].exists)
+        XCTAssertFalse(app.buttons["ai.testConnection"].isEnabled)
         capture(app, "AI设置-中文")
     }
 
@@ -78,7 +83,7 @@ final class NookUITests: XCTestCase {
     }
 
     @MainActor
-    func testRecurringEventEditorExposesRepeatAndTransport() throws {
+    func testCalendarRepeatsWithoutTransportFields() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "light"]
         launch(app)
@@ -91,10 +96,56 @@ final class NookUITests: XCTestCase {
         enable(app.switches["Repeats"], in: app)
         reveal(app.buttons["Weekdays"], in: app)
         app.buttons["Weekdays"].tap()
-        enable(app.switches["Transport Details"], in: app)
+        XCTAssertFalse(app.switches["Transport Details"].exists)
+        capture(app, "重复日程-英文")
+    }
+
+    @MainActor
+    func testTripsOwnTransportAndKeepItAfterSaving() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "light"]
+        launch(app)
+        app.buttons["tab.schedule"].tap()
+        app.buttons["Trips"].tap()
+        app.scrollViews["screen.schedule"].buttons["button.add"].firstMatch.tap()
+        let title = app.textFields["trip.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap(); title.typeText("Hangzhou by train")
+        app.navigationBars["New Trip"].tap()
+        enable(app.switches["trip.transport"], in: app)
         reveal(app.textFields["Train Number"], in: app)
+        app.textFields["Train Number"].tap(); app.textFields["Train Number"].typeText("G123")
+        app.navigationBars["New Trip"].tap()
         reveal(app.textFields["Departure Station"], in: app)
-        capture(app, "重复与交通信息")
+        app.textFields["Departure Station"].tap(); app.textFields["Departure Station"].typeText("Shanghai Hongqiao")
+        app.navigationBars["New Trip"].tap()
+        capture(app, "行程交通-英文")
+        app.buttons["trip.save"].tap()
+        XCTAssertTrue(app.buttons["trip.save"].waitForNonExistence(timeout: 5))
+        let saved = app.buttons["Hangzhou by train"].firstMatch
+        reveal(saved, in: app); saved.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertEqual(title.value as? String, "Hangzhou by train")
+        reveal(app.textFields["Train Number"], in: app)
+        XCTAssertEqual(app.textFields["Train Number"].value as? String, "G123")
+    }
+
+    @MainActor
+    func testEnglishSettingsAndWidgetPreviewsRender() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "light"]
+        launch(app)
+        capture(app, "Home-English")
+        app.buttons["home.settings"].tap()
+        reveal(app.buttons["settings.language"], in: app)
+        capture(app, "Language-English")
+        let preview = app.buttons["Widget Previews"]
+        reveal(preview, in: app); preview.tap()
+        XCTAssertTrue(app.navigationBars["Widget Previews"].waitForExistence(timeout: 5))
+        enable(app.switches["Show Details in Widgets"], in: app)
+        capture(app, "Widget-Previews-English")
+        reveal(app.staticTexts["Anniversary"], in: app)
+        capture(app, "Widget-Notes-Anniversary-English")
     }
 
     @MainActor

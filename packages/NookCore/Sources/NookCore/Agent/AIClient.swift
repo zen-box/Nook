@@ -67,11 +67,12 @@ public struct AIModel: Identifiable, Hashable, Sendable {
     public init(id: String, name: String? = nil) { self.id = id; self.name = name ?? id }
 }
 public enum AIError: LocalizedError {
-    case invalidBase, noModel, invalidResponse, http(Int), tooManyPages
+    case invalidBase, noModel, noKey, invalidResponse, http(Int), tooManyPages
     public var errorDescription: String? {
         switch self {
         case .invalidBase: "API Base must be an HTTPS URL without credentials, query parameters or fragments."
         case .noModel: "Choose a model or enter its full ID."
+        case .noKey: "Enter an API key first."
         case .invalidResponse: "The service returned an unsupported response. Check the API type and model capabilities."
         case .http(let status): "AI request failed (HTTP \(status)). Check the API type, address, key and model."
         case .tooManyPages: "The model list is too large. Search the loaded list or enter the model ID manually."
@@ -151,7 +152,20 @@ public struct AIClient: Sendable {
         let request = try makeRequest(system: system, messages: messages)
         return try parse(await send(request))
     }
-    public func makeRequest(system: String, messages: [AIMessage]) throws -> URLRequest {
+    /// Exercises the selected inference endpoint, without records, images or tools.
+    public func testConnection() async throws -> AIResponse {
+        let response = try parse(await send(makeConnectionTestRequest()))
+        guard response.calls.isEmpty, !response.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AIError.invalidResponse }
+        return response
+    }
+    public func makeConnectionTestRequest() throws -> URLRequest {
+        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AIError.noKey }
+        var request = try makeRequest(system: "Connection test. Reply with OK only.",
+            messages: [.init(role: "user", text: "Reply OK.")], toolsEnabled: false)
+        request.timeoutInterval = 30
+        return request
+    }
+    public func makeRequest(system: String, messages: [AIMessage], toolsEnabled: Bool = true) throws -> URLRequest {
         guard !configuration.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AIError.noModel }
         let schemas = AgentTools.definitions
         let type = configuration.apiType
@@ -166,7 +180,7 @@ public struct AIClient: Sendable {
                 if !message.calls.isEmpty { value["tool_calls"] = message.calls.map { ["id": $0.id, "type": "function", "function": ["name": $0.name, "arguments": $0.arguments.json]] as [String: Any] } }
                 return value
             }
-            body["tools"] = schemas.map { ["type": "function", "function": $0.foundation] as [String: Any] }
+            if toolsEnabled { body["tools"] = schemas.map { ["type": "function", "function": $0.foundation] as [String: Any] } }
         case .responses:
             suffix = "responses"; body["instructions"] = system; body["store"] = false
             body["include"] = ["reasoning.encrypted_content"]
@@ -182,9 +196,9 @@ public struct AIClient: Sendable {
                 values += message.calls.map { ["type": "function_call", "call_id": $0.id, "name": $0.name, "arguments": $0.arguments.json] }
                 return values
             }
-            body["tools"] = schemas.map { schema -> [String: Any] in
+            if toolsEnabled { body["tools"] = schemas.map { schema -> [String: Any] in
                 var value = schema.foundation as! [String: Any]; value["type"] = "function"; value["strict"] = false; return value
-            }
+            } }
         case .generateContent:
             let model = configuration.model.hasPrefix("models/") ? String(configuration.model.dropFirst(7)) : configuration.model
             guard !model.contains("/"), !model.contains(":"), !model.contains("?") else { throw AIError.noModel }
@@ -200,11 +214,11 @@ public struct AIClient: Sendable {
                 }
                 return ["role": message.role == "assistant" ? "model" : "user", "parts": parts]
             }, contentKey: "parts")
-            body["tools"] = [["functionDeclarations": schemas.map {
+            if toolsEnabled { body["tools"] = [["functionDeclarations": schemas.map {
                 ["name": $0["name"]!.foundation, "description": $0["description"]!.foundation, "parametersJsonSchema": $0["parameters"]!.foundation]
-            }]]
+            }]] }
         case .messages:
-            suffix = "messages"; body["system"] = system; body["max_tokens"] = 4096
+            suffix = "messages"; body["system"] = system; body["max_tokens"] = toolsEnabled ? 4096 : 256
             body["messages"] = coalescing(messages.map { message -> [String: Any] in
                 var content: [[String: Any]] = message.text.isEmpty ? [] : [["type": "text", "text": message.text]]
                 if message.role == "tool" { content = [["type": "tool_result", "tool_use_id": message.toolCallID ?? "", "content": message.text]] }
@@ -214,7 +228,7 @@ public struct AIClient: Sendable {
                 }
                 return ["role": message.role == "assistant" ? "assistant" : "user", "content": content]
             }, contentKey: "content")
-            body["tools"] = schemas.map { ["name": $0["name"]!.foundation, "description": $0["description"]!.foundation, "input_schema": $0["parameters"]!.foundation] }
+            if toolsEnabled { body["tools"] = schemas.map { ["name": $0["name"]!.foundation, "description": $0["description"]!.foundation, "input_schema": $0["parameters"]!.foundation] } }
         }
         return try request(url: endpoint(suffix), body: body)
     }

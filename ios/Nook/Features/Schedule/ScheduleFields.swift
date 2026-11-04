@@ -61,9 +61,10 @@ struct RecurrenceFields: View {
 @MainActor
 struct TransportFields: View {
     @Binding var details: TransportDetails?
+    var showsToggle = true
     var body: some View {
         Section {
-            Toggle("Transport Details", isOn: Binding(get: { details != nil }, set: { details = $0 ? TransportDetails() : nil }))
+            if showsToggle { Toggle("Transport Details", isOn: Binding(get: { details != nil }, set: { details = $0 ? TransportDetails() : nil })) }
             if details != nil {
                 Picker("Transport", selection: binding(\.kind, .train)) {
                     Text("Train / High-speed Rail").tag(TransportDetails.Kind.train)

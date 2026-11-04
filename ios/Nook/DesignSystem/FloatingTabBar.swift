@@ -1,61 +1,63 @@
 import SwiftUI
 
-/// The floating white tab bar. Home's selected state is a navy circle; the other tabs get a
-/// light-blue pill. One indicator slides between items.
+/// A centered assistant action; all five destinations stay one tap away.
 struct FloatingTabBar: View {
     let selection: AppTab
     let onSelect: (AppTab) -> Void
+    let onAssistant: () -> Void
+    @Namespace private var selectionAnimation
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(AppTab.allCases) { tab in
-                Button {
-                    onSelect(tab)
-                } label: {
-                    Image(systemName: tab.symbol)
-                        .symbolVariant(tab == selection ? .fill : .none)
-                        .font(.system(size: 19, weight: tab == selection ? .semibold : .regular))
-                        .foregroundStyle(iconColor(for: tab))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 64)
-                        .contentShape(Rectangle())
+        GeometryReader { proxy in
+            let compact = proxy.size.width < 350
+            HStack(spacing: 0) {
+                HStack(spacing: 0) { tab(.home); tab(.notes); tab(.vault) }.frame(maxWidth: .infinity)
+                Button(action: onAssistant) {
+                    VStack(spacing: 2) {
+                        Image(systemName: "sparkles").font(.system(size: 21, weight: .semibold))
+                        Text(verbatim: "Nook").font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(Theme.onNavy)
+                    .frame(width: compact ? 44 : 52, height: 52)
+                    .background(Theme.navy, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(tab.title))
-                .accessibilityIdentifier("tab.\(tab.rawValue)")
-                .accessibilityAddTraits(tab == selection ? .isSelected : [])
+                .buttonStyle(.pressable)
+                .accessibilityLabel(Text("Ask Nook"))
+                .accessibilityIdentifier("tab.assistant")
+                HStack(spacing: 0) { tab(.schedule); tab(.finance) }.frame(maxWidth: .infinity)
             }
+            .frame(height: 64)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Theme.border, lineWidth: 1) }
+            .shadow(color: Theme.shadow, radius: 20, x: 0, y: 10)
+            .padding(.horizontal, compact ? 6 : Metrics.screenPadding)
         }
-        .background { indicator }
-        .animation(.easeOut(duration: 0.2), value: selection)
-        .padding(.horizontal, 6)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Theme.border, lineWidth: 1)
-        }
-        .shadow(color: Theme.shadow, radius: 20, x: 0, y: 10)
-        .padding(.horizontal, Metrics.screenPadding)
+        .frame(height: 64)
         .padding(.bottom, 6)
         .sensoryFeedback(.selection, trigger: selection)
     }
 
-    private var indicator: some View {
-        GeometryReader { proxy in
-            let itemWidth = proxy.size.width / CGFloat(AppTab.allCases.count)
-            let isHome = selection == .home
-            let size = isHome ? CGSize(width: 46, height: 46) : CGSize(width: 58, height: 40)
-            RoundedRectangle(cornerRadius: size.height / 2, style: .continuous)
-                .fill(isHome ? Theme.navy : Theme.primarySoft)
-                .frame(width: size.width, height: size.height)
-                .position(x: itemWidth * (CGFloat(selection.index) + 0.5), y: proxy.size.height / 2)
+    private func tab(_ tab: AppTab) -> some View {
+        let selected = tab == selection
+        return Button { onSelect(tab) } label: {
+            Image(systemName: tab.symbol)
+                .symbolVariant(selected ? .fill : .none)
+                .font(.system(size: 19, weight: selected ? .semibold : .regular))
+                .foregroundStyle(selected ? Theme.accent : Theme.textSecondary)
+                .frame(minWidth: 44, maxWidth: .infinity, minHeight: 64)
+                .background {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 15).fill(Theme.primarySoft)
+                            .frame(width: 40, height: 40)
+                            .matchedGeometryEffect(id: "tabSelection", in: selectionAnimation)
+                    }
+                }
+                .contentShape(Rectangle())
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.8), value: selection)
-        .allowsHitTesting(false)
-    }
-
-    private func iconColor(for tab: AppTab) -> Color {
-        guard tab == selection else { return Theme.textSecondary }
-        return tab == .home ? Theme.onNavy : Theme.accent
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(tab.title))
+        .accessibilityIdentifier("tab.\(tab.rawValue)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: selection)
     }
 }
