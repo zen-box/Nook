@@ -167,14 +167,25 @@ final class NookUITests: XCTestCase {
     }
 
     @MainActor private func launch(_ app: XCUIApplication) {
+        // App unit tests can leave their host running with notification consent
+        // pending. Dismiss it before asking XCTest to terminate or relaunch Nook.
+        allowNotificationsIfPrompted(timeout: 2)
+        if app.state != .notRunning { app.terminate() }
         app.launch()
-        // Demo fixtures include reminders. Handle the real first-use system prompt
-        // before inspecting the app, so it cannot obscure the home screenshot.
+        // UI fixtures can also trigger first-use consent after a clean launch.
+        allowNotificationsIfPrompted(timeout: 5)
+    }
+
+    @MainActor private func allowNotificationsIfPrompted(timeout: TimeInterval) {
         let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
-        if alert.waitForExistence(timeout: 5) {
+        if alert.waitForExistence(timeout: timeout) {
             for label in ["Allow", "允许"] {
                 let button = alert.buttons[label]
-                if button.exists { button.tap(); break }
+                if button.exists {
+                    button.tap()
+                    XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
+                    return
+                }
             }
         }
     }
