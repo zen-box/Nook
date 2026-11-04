@@ -1,0 +1,62 @@
+# Codemagic CI for Nook (iOS, SwiftUI).
+#
+# Workflows (start them from the Codemagic UI or with scripts/codemagic-build.ps1):
+#   ios-simulator-preview  Debug build for the iOS Simulator. The Nook.app artifact
+#                          gets a "Quick Launch" button for App Preview.
+#   ios-device-unsigned    Release build for iPhone without code signing. The
+#                          Nook-unsigned.ipa artifact is re-signed locally (万能签).
+#   ios-tests              NookCore package tests plus app unit/UI tests on a simulator.
+#
+# No Apple certificates or provisioning profiles are used anywhere.
+# The Xcode project is generated from ios/project.yml by XcodeGen on every build.
+
+definitions:
+  environment: &environment
+    xcode: "26.6"
+  scripts:
+    - &generate_project
+      name: Generate Xcode project (XcodeGen)
+      script: bash scripts/generate-project.sh
+
+workflows:
+  ios-simulator-preview:
+    name: iOS Simulator build (App Preview)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment: *environment
+    scripts:
+      - *generate_project
+      - name: Build Nook.app for the iOS Simulator
+        script: bash scripts/build-ios-simulator.sh
+    artifacts:
+      - build/ios-simulator/Build/Products/Debug-iphonesimulator/Nook.app
+      - build/logs/*
+
+  ios-device-unsigned:
+    name: iPhone unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment: *environment
+    scripts:
+      - *generate_project
+      - name: Build unsigned IPA
+        script: bash scripts/build-ios-device-unsigned.sh
+    artifacts:
+      - build/Nook-unsigned.ipa
+      - build/logs/*
+
+  ios-tests:
+    name: Tests (NookCore + iOS Simulator)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment: *environment
+    scripts:
+      - name: NookCore package tests
+        script: swift test --package-path packages/NookCore
+      - *generate_project
+      - name: App unit and UI tests
+        script: bash scripts/test-ios.sh
+        test_report: build/test-results/junit.xml
+    artifacts:
+      - build/test-results/*.zip
+      - build/logs/*
