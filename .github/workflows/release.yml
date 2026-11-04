@@ -3,16 +3,21 @@ name: Publish release
 on:
   push:
     tags: ['v*']
+  workflow_run:
+    workflows: ['iOS build and tests']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
   publish:
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -20,24 +25,43 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      EVENT_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
       - name: Require passing iOS build for this commit
+        id: gate
         shell: bash
         run: |
           set -euo pipefail
           VERSION=$(sed -n 's/.*MARKETING_VERSION: "\([^"]*\)"/\1/p' ios/project.yml)
-          test "$RELEASE_TAG" = "v$VERSION"
+          RELEASE_TAG="v$VERSION"
+          if [[ -n "$EVENT_TAG" && "$EVENT_TAG" != "$RELEASE_TAG" ]]; then
+            echo '::error::Release tag does not match the app version.'
+            exit 1
+          fi
+          if ! git show-ref --verify --quiet "refs/tags/$RELEASE_TAG" || [[ "$(git rev-list -n 1 "$RELEASE_TAG")" != "$RELEASE_SHA" ]]; then
+            echo 'No release tag points to this build; nothing to publish.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           test -f ".github/releases/$RELEASE_TAG.md"
           RUN=$(gh api --method GET "repos/$GH_REPO/actions/workflows/ios.yml/runs" \
-            -f branch=main -f event=push -f head_sha="$GITHUB_SHA" -f per_page=1)
-          RUN_ID=$(echo "$RUN" | jq -er --arg sha "$GITHUB_SHA" \
-            '.workflow_runs[0] | select(.head_sha == $sha and .status == "completed" and .conclusion == "success") | .id')
+            -f branch=main -f event=push -f head_sha="$RELEASE_SHA" -f per_page=1)
+          if ! RUN_ID=$(echo "$RUN" | jq -er --arg sha "$RELEASE_SHA" \
+            '.workflow_runs[0] | select(.head_sha == $sha and .status == "completed" and .conclusion == "success") | .id'); then
+            echo "Waiting for a successful iOS build of $RELEASE_SHA. A passing build will resume publishing automatically." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           gh run download "$RUN_ID" --name Nook-unsigned --dir build/release
           echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "BUILD_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
       - name: Verify and name the IPA
+        if: steps.gate.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -58,9 +82,14 @@ jobs:
           source.rename(source.with_name(f'Nook-{version}-unsigned.ipa'))
           PY
       - name: Publish tested IPA
+        if: steps.gate.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json tagName --jq '.tagName' >/dev/null 2>&1; then
+            echo "$RELEASE_TAG is already published." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           gh release create "$RELEASE_TAG" "build/release/Nook-$RELEASE_VERSION-unsigned.ipa" \
             --verify-tag --title "Nook $RELEASE_TAG" \
             --notes-file ".github/releases/$RELEASE_TAG.md" --latest
