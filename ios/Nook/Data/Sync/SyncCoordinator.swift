@@ -41,11 +41,13 @@ final class SyncCoordinator {
     private let store: AppStore
     private let deviceID: UUID
     private var automaticSync: Task<Void, Never>?
+    private let networkSession: URLSession?
     var configuration: S3Configuration? {
         return state?.configuration ?? store.defaults.data(forKey: "sync.configuration").flatMap { try? JSONDecoder().decode(S3Configuration.self, from: $0) }
     }
-    init(store: AppStore) {
+    init(store: AppStore, session: URLSession? = nil) {
         self.store = store
+        networkSession = session
         if let id = store.defaults.string(forKey: "sync.deviceID").flatMap(UUID.init(uuidString:)) { deviceID = id }
         else { deviceID = UUID(); store.defaults.set(deviceID.uuidString, forKey: "sync.deviceID") }
         if let bytes = try? store.database.metadata("sync.state") { state = try? NookJSON.makeDecoder().decode(SyncLocalState.self, from: bytes) }
@@ -56,7 +58,7 @@ final class SyncCoordinator {
     func configure(_ config: S3Configuration, credentials: S3Credentials, recovery: String?, create: Bool) async throws -> String? {
         guard !isWorking else { throw SyncError.changedDuringSync }
         isWorking = true; defer { isWorking = false }
-        let client = S3Client(configuration: config, credentials: credentials)
+        let client = S3Client(configuration: config, credentials: credentials, session: networkSession)
         let headerKey = client.path("library.json")
         let existing = try await client.get(headerKey)
         let library: SyncLibrary, key: Data
@@ -107,7 +109,7 @@ final class SyncCoordinator {
     private func connection() throws -> (S3Client, Data, SyncLocalState) {
         guard let state, let config = configuration, let encoded = try SecretStore.read(savedCredentialAccount()),
               let root = try SecretStore.read("sync.root.\(state.library.id)") else { throw SyncError.notConfigured }
-        return (S3Client(configuration: config, credentials: try JSONDecoder().decode(S3Credentials.self, from: encoded)), root, state)
+        return (S3Client(configuration: config, credentials: try JSONDecoder().decode(S3Credentials.self, from: encoded), session: networkSession), root, state)
     }
     func savedCredentialAccount() throws -> String {
         if let bytes = try store.database.metadata("sync.credentials"), let name = String(data: bytes, encoding: .utf8), name.hasPrefix("sync.s3.") { return name }

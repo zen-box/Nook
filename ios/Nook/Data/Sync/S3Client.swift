@@ -18,10 +18,10 @@ enum S3Error: LocalizedError {
     case configuration, http(Int), invalidList, tooLarge
     var errorDescription: String? {
         switch self {
-        case .configuration: "Check the HTTPS S3 endpoint, bucket, region and credentials."
-        case .http(let status): "S3 request failed (HTTP \(status)). Check endpoint, region and bucket permissions."
-        case .invalidList: "The S3 endpoint returned an invalid or incomplete object list."
-        case .tooLarge: "The remote object exceeds this version's safe import size."
+        case .configuration: String(localized: "Check the HTTPS S3 endpoint, bucket, region and credentials.")
+        case .http(let status): String(localized: "S3 request failed (HTTP \(status)). Check endpoint, region and bucket permissions.")
+        case .invalidList: String(localized: "The S3 endpoint returned an invalid or incomplete object list.")
+        case .tooLarge: String(localized: "The remote object exceeds this version's safe import size.")
         }
     }
 }
@@ -29,7 +29,11 @@ enum S3Error: LocalizedError {
 struct S3Client: Sendable {
     let configuration: S3Configuration
     let credentials: S3Credentials
-    private let session = URLSession(configuration: .ephemeral, delegate: S3RedirectGuard(), delegateQueue: nil)
+    private let session: URLSession
+    init(configuration: S3Configuration, credentials: S3Credentials, session: URLSession? = nil) {
+        self.configuration = configuration; self.credentials = credentials
+        self.session = session ?? URLSession(configuration: .ephemeral, delegate: S3RedirectGuard(), delegateQueue: nil)
+    }
 
     func signedRequest(method: String, key: String = "", query: [String: String] = [:], data: Data = Data(),
                        createOnly: Bool = false, now: Date = Date()) throws -> URLRequest {
