@@ -342,6 +342,7 @@ struct VaultItemEditorView: View {
         item.url = item.category == .account && !site.isEmpty ? site : nil
         do {
             try store.vault.save(item)
+            router.showToast(ToastMessage(text: itemID == nil ? "Added to the vault" : "Changes saved", symbol: "lock.fill"))
             dismiss()
         } catch {
             router.showToast(ToastMessage(text: "Couldn't save the change", symbol: "exclamationmark.triangle.fill", isWarning: true))

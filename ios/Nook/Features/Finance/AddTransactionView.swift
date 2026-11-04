@@ -208,6 +208,7 @@ struct AddTransactionView: View {
             entry.title = name
             entry.occurredAt = date
             guard store.saveEntry(entry) else { return }
+            router.showToast(ToastMessage(text: "Changes saved"))
         } else {
             guard store.saveEntry(LedgerEntry(kind: kind, amount: amount, category: category, title: name, occurredAt: date)) else { return }
             router.showToast(ToastMessage(text: kind == .income ? "Income added" : "Expense added"))

@@ -5,6 +5,7 @@ struct TripEditorView: View {
     let tripID: UUID?
     var transportEventID: UUID? = nil
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var destination = ""
@@ -158,6 +159,7 @@ struct TripEditorView: View {
             }
             let plan = try TripJourneyPlan.make(trip: trip, previousTrip: originalTrip, journey: journey, previousJourney: originalJourney)
             try store.applyAssistantPlan(plan)
+            router.showToast(ToastMessage(text: "Trip saved"))
             dismiss()
         } catch { self.error = error.localizedDescription }
     }
@@ -166,6 +168,7 @@ struct TripEditorView: View {
 struct AnniversaryEditorView: View {
     let anniversaryID: UUID?
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var date = Date()
@@ -281,6 +284,7 @@ struct AnniversaryEditorView: View {
         anniversary.reminder = reminderEnabled ? AnniversaryReminder(hour: Calendar.current.component(.hour, from: reminderTime),
             minute: Calendar.current.component(.minute, from: reminderTime), daysBefore: reminderDays.isEmpty ? [0] : reminderDays.sorted()) : nil
         guard store.saveAnniversary(anniversary) else { return }
+        router.showToast(ToastMessage(text: "Anniversary saved"))
         dismiss()
     }
 }

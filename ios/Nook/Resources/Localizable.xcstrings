@@ -181,6 +181,34 @@
         }
       }
     },
+    "%lld images attached": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld image attached"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld images attached"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附带 %lld 张图片"
+          }
+        }
+      }
+    },
     "%lld items could not be decrypted": {
       "localizations": {
         "en": {
@@ -805,6 +833,22 @@
         }
       }
     },
+    "Added to the vault": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added to the vault"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已存入密码库"
+          }
+        }
+      }
+    },
     "After Occurrences": {
       "localizations": {
         "en": {
@@ -1041,6 +1085,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "纪念日倒计时"
+          }
+        }
+      }
+    },
+    "Anniversary saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anniversary saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "纪念日已保存"
           }
         }
       }
@@ -1685,6 +1745,22 @@
         }
       }
     },
+    "Changes saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改已保存"
+          }
+        }
+      }
+    },
     "Changes saved.": {
       "localizations": {
         "en": {
@@ -1845,6 +1921,38 @@
         }
       }
     },
+    "Choose an option or type your own answer.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an option or type your own answer."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选一个选项，或直接输入你的回答。"
+          }
+        }
+      }
+    },
+    "Choose this occurrence, this and future occurrences, or the entire series.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose this occurrence, this and future occurrences, or the entire series."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择：仅此一次、此次及以后，或整个系列。"
+          }
+        }
+      }
+    },
     "Clear": {
       "localizations": {
         "en": {
@@ -1921,6 +2029,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "请先在 AI 设置中配置 API 密钥和模型。"
+          }
+        }
+      }
+    },
+    "Confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认"
           }
         }
       }
@@ -2533,6 +2657,22 @@
         }
       }
     },
+    "Delete %lld records?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %lld records?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 %lld 条记录？"
+          }
+        }
+      }
+    },
     "Delete All Vault Items": {
       "localizations": {
         "en": {
@@ -2949,6 +3089,22 @@
         }
       }
     },
+    "Discard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃"
+          }
+        }
+      }
+    },
     "Discard Draft": {
       "localizations": {
         "en": {
@@ -2961,6 +3117,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "放弃草稿"
+          }
+        }
+      }
+    },
+    "Discarded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discarded"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已放弃"
+          }
+        }
+      }
+    },
+    "Discarded. Nothing was saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discarded. Nothing was saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已放弃，没有保存任何内容。"
           }
         }
       }
@@ -3409,6 +3597,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "日程"
+          }
+        }
+      }
+    },
+    "Event added": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event added"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日程已添加"
+          }
+        }
+      }
+    },
+    "Event updated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event updated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日程已更新"
           }
         }
       }
@@ -4465,6 +4685,22 @@
         }
       }
     },
+    "Listening… tap stop when you're done.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening… tap stop when you're done."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在聆听…说完后点停止。"
+          }
+        }
+      }
+    },
     "Local first. Sync is optional.": {
       "localizations": {
         "en": {
@@ -4813,6 +5049,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "新建纪念日"
+          }
+        }
+      }
+    },
+    "New Conversation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Conversation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新对话"
           }
         }
       }
@@ -5313,6 +5565,22 @@
         }
       }
     },
+    "Not saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未保存"
+          }
+        }
+      }
+    },
     "Not set": {
       "localizations": {
         "en": {
@@ -5389,6 +5657,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "这台 iPhone 上的便签、日程和记账数据将被备份替换，密码库保持不变。"
+          }
+        }
+      }
+    },
+    "Nothing is saved until you confirm.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing is saved until you confirm."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认之前不会保存任何内容。"
           }
         }
       }
@@ -5533,6 +5817,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "仅此次日程"
+          }
+        }
+      }
+    },
+    "Open AI Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open AI Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 AI 设置"
           }
         }
       }
@@ -6369,6 +6669,22 @@
         }
       }
     },
+    "Remove image": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除图片"
+          }
+        }
+      }
+    },
     "Remove item": {
       "localizations": {
         "en": {
@@ -6541,6 +6857,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "替换现有数据？"
+          }
+        }
+      }
+    },
+    "Replaced": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaced"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已替换"
+          }
+        }
+      }
+    },
+    "Replaced by a newer draft below.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaced by a newer draft below."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已被下方的新草稿替换。"
           }
         }
       }
@@ -6849,6 +7197,22 @@
         }
       }
     },
+    "Saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存"
+          }
+        }
+      }
+    },
     "Scan New Phone": {
       "localizations": {
         "en": {
@@ -6893,6 +7257,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "日程"
+          }
+        }
+      }
+    },
+    "Scheduling reminders…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduling reminders…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在安排提醒…"
           }
         }
       }
@@ -7021,6 +7401,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "安全密码库"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送"
           }
         }
       }
@@ -7313,6 +7709,22 @@
         }
       }
     },
+    "Start a new conversation?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a new conversation?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始新对话？"
+          }
+        }
+      }
+    },
     "Starting local transfer…": {
       "localizations": {
         "en": {
@@ -7357,6 +7769,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 开始"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        }
+      }
+    },
+    "Stop Voice Input": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Voice Input"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止语音输入"
           }
         }
       }
@@ -7553,6 +7997,22 @@
         }
       }
     },
+    "Tap the microphone to speak instead of typing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the microphone to speak instead of typing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点麦克风可以直接说话，不用打字。"
+          }
+        }
+      }
+    },
     "Tap to add your first expense": {
       "localizations": {
         "en": {
@@ -7565,6 +8025,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "点一下记第一笔支出"
+          }
+        }
+      }
+    },
+    "Tap to add. Touch and hold for more options.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to add. Touch and hold for more options."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点添加，按住可选择更多操作。"
           }
         }
       }
@@ -7729,6 +8205,38 @@
         }
       }
     },
+    "The assistant's draft was incomplete (%@). Try rephrasing the request.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The assistant's draft was incomplete (%@). Try rephrasing the request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手生成的草稿不完整（%@），请换个说法再试。"
+          }
+        }
+      }
+    },
+    "The chat is cleared. Records you saved are kept.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The chat is cleared. Records you saved are kept."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天内容会被清空，已保存的记录不受影响。"
+          }
+        }
+      }
+    },
     "The old phone's data is kept. Verify notes, photos, recordings and the vault on the new phone before erasing the old phone.": {
       "localizations": {
         "en": {
@@ -7741,6 +8249,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "旧手机数据仍保留。请先在新手机核对便签、照片、录音和密码库，再清理旧手机。"
+          }
+        }
+      }
+    },
+    "The record wasn't found. Ask again and name it more precisely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The record wasn't found. Ask again and name it more precisely."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有找到这条记录，请说得更具体一些再试一次。"
+          }
+        }
+      }
+    },
+    "The records go back to how they were before you confirmed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The records go back to how they were before you confirmed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录会恢复到你确认之前的样子。"
           }
         }
       }
@@ -7905,6 +8445,38 @@
         }
       }
     },
+    "This record changed after the draft was prepared. Ask again to get an updated draft.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This record changed after the draft was prepared. Ask again to get an updated draft."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿生成后这条记录有变动，请重新发一次请求，获取最新的草稿。"
+          }
+        }
+      }
+    },
+    "This record was edited after it was saved, so the change can't be undone automatically. Edit it directly instead.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This record was edited after it was saved, so the change can't be undone automatically. Edit it directly instead."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这条记录保存后又被修改过，无法自动撤销，请直接编辑它。"
+          }
+        }
+      }
+    },
     "This replaces local records and the encrypted vault with the old phone's data. The vault still needs its original master password. The old phone is not erased.": {
       "localizations": {
         "en": {
@@ -7933,6 +8505,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "时间"
+          }
+        }
+      }
+    },
+    "Tip: swipe left or right to switch pages": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tip: swipe left or right to switch pages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小提示：左右滑动即可切换页面"
           }
         }
       }
@@ -8337,6 +8925,22 @@
         }
       }
     },
+    "Trip saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trip saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程已保存"
+          }
+        }
+      }
+    },
     "Trips": {
       "localizations": {
         "en": {
@@ -8417,6 +9021,22 @@
         }
       }
     },
+    "Type your answer below.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type your answer below."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在下方输入你的回答。"
+          }
+        }
+      }
+    },
     "Undo": {
       "localizations": {
         "en": {
@@ -8433,6 +9053,22 @@
         }
       }
     },
+    "Undo Change": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo Change"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销修改"
+          }
+        }
+      }
+    },
     "Undo last action": {
       "localizations": {
         "en": {
@@ -8445,6 +9081,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "撤销上次操作"
+          }
+        }
+      }
+    },
+    "Undo this change?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo this change?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销这次修改？"
+          }
+        }
+      }
+    },
+    "Undone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undone"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已撤销"
+          }
+        }
+      }
+    },
+    "Undone. The records are back to how they were.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undone. The records are back to how they were."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已撤销，记录已恢复原样。"
           }
         }
       }
@@ -8769,6 +9453,38 @@
         }
       }
     },
+    "Voice Input": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice Input"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音输入"
+          }
+        }
+      }
+    },
+    "Voice input couldn't start. Check that no other app is using the microphone, then try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice input couldn't start. Check that no other app is using the microphone, then try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法开始语音输入。请确认没有其他应用正在使用麦克风，然后重试。"
+          }
+        }
+      }
+    },
     "Waiting for confirmation on the other phone…": {
       "localizations": {
         "en": {
@@ -8993,6 +9709,22 @@
         }
       }
     },
+    "Will be deleted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will be deleted"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将被删除"
+          }
+        }
+      }
+    },
     "Without the master password the saved items can't be decrypted. Resetting deletes them and lets you choose a new master password.": {
       "localizations": {
         "en": {
@@ -9149,6 +9881,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "你仍可手动输入模型 ID。"
+          }
+        }
+      }
+    },
+    "You can undo this right after saving.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can undo this right after saving."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存后可以立即撤销。"
           }
         }
       }

@@ -1,24 +1,24 @@
 import SwiftUI
 import NookCore
 
-/// Five navigation stacks kept alive side by side, with the floating tab bar on top.
+/// Five navigation stacks side by side in a paging scroll view: swipe left or right to change
+/// tab, or tap the floating tab bar on top.
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance: Appearance = .system
+    @AppStorage("hint.swipeTabs") private var swipeHintShown = false
+    /// The page the pager shows; follows `router.selectedTab` both ways.
+    @State private var page: AppTab? = .home
+    /// Set while the pager animates to a tapped tab, so pages passed on the way are ignored.
+    @State private var scrollTarget: AppTab?
 
     var body: some View {
         @Bindable var router = router
         ZStack(alignment: .bottom) {
             Theme.background.ignoresSafeArea()
-            ForEach(AppTab.allCases) { tab in
-                let isActive = router.selectedTab == tab
-                TabStack(tab: tab)
-                    .opacity(isActive ? 1 : 0)
-                    .allowsHitTesting(isActive)
-                    .accessibilityHidden(!isActive)
-            }
+            pager
             if router.isTabBarVisible {
                 FloatingTabBar(selection: router.selectedTab, onSelect: { router.select($0) },
                                onAssistant: { router.present(.assistant) })
@@ -34,8 +34,30 @@ struct RootView: View {
             SheetContent(sheet: sheet)
                 .environment(store)
                 .environment(router)
+                .overlay(alignment: .top) { ToastOverlay() }
                 .modifier(PrivacyShield())
                 .modifier(AppAppearance())
+        }
+        .onChange(of: router.selectedTab) { _, tab in
+            guard page != tab else { return }
+            scrollTarget = tab
+            withAnimation(.snappy(duration: 0.35)) { page = tab }
+            Task {
+                try? await Task.sleep(for: .milliseconds(450))
+                if scrollTarget == tab { scrollTarget = nil }
+            }
+        }
+        .onChange(of: page) { _, current in
+            guard scrollTarget == nil, let current, current != router.selectedTab else { return }
+            router.selectedTab = current
+        }
+        .task {
+            page = router.selectedTab
+            if !swipeHintShown && !ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+                swipeHintShown = true
+                try? await Task.sleep(for: .seconds(1.2))
+                router.showToast(ToastMessage(text: "Tip: swipe left or right to switch pages", symbol: "hand.draw"))
+            }
         }
         .task {
             store.syncReminders()
@@ -62,6 +84,31 @@ struct RootView: View {
         .onChange(of: store.saveFailures) { _, _ in
             router.showToast(ToastMessage(text: "Couldn't save the change", symbol: "exclamationmark.triangle.fill", isWarning: true))
         }
+    }
+}
+
+extension RootView {
+    /// Native paging: nested vertical lists keep scrolling normally, and horizontal paging is off
+    /// while a screen is pushed so the back-swipe gesture stays with the navigation stack.
+    private var pager: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 0) {
+                ForEach(AppTab.allCases) { tab in
+                    TabStack(tab: tab)
+                        // `scrollDisabled` below is inherited; the pages' own lists stay scrollable.
+                        .scrollDisabled(false)
+                        .containerRelativeFrame(.horizontal)
+                        .accessibilityHidden(router.selectedTab != tab)
+                        .id(tab)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $page, anchor: .center)
+        .scrollIndicators(.hidden)
+        .scrollDisabled(!router.isTabBarVisible)
+        .ignoresSafeArea(.container)
     }
 }
 
@@ -280,6 +327,7 @@ struct AddMenuButton: View {
             router.perform(primary, store: store)
         }
         .accessibilityLabel(Text("Add"))
+        .accessibilityHint(Text("Tap to add. Touch and hold for more options."))
         .accessibilityIdentifier("button.add")
     }
 }

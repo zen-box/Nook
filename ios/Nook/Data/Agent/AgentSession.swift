@@ -2,28 +2,53 @@ import Foundation
 import Observation
 import NookCore
 
-struct AgentBubble: Identifiable {
-    let id = UUID()
-    let isUser: Bool
-    let text: String
-}
 struct AgentQuestion: Identifiable {
     let id = UUID()
     let text: String
     let options: [String]
 }
 
+/// What happened to a draft card. Cards stay in the conversation with their outcome.
+enum AgentDraftState: Equatable {
+    case pending
+    case saved
+    case discarded
+    /// A newer draft from the assistant took its place.
+    case replaced
+    case undone
+}
+
+/// One item of the conversation, in the order it happened.
+struct AgentEntry: Identifiable {
+    enum Kind {
+        case user(String, imageCount: Int)
+        case assistant(String)
+        case question(AgentQuestion)
+        case draft(AgentPlan)
+        case notice(String, isError: Bool)
+    }
+
+    let id = UUID()
+    let kind: Kind
+}
+
 /// Receives six explicit record capabilities, never AppStore, VaultStore or arbitrary storage.
 @MainActor @Observable
 final class AgentSession {
-    private(set) var bubbles: [AgentBubble] = []
-    private(set) var question: AgentQuestion?
+    private(set) var entries: [AgentEntry] = []
+    private(set) var draftStates: [UUID: AgentDraftState] = [:]
+    /// Extra outcome text for a saved draft, such as reminder scheduling.
+    private(set) var draftNotes: [UUID: String] = [:]
+    private(set) var answers: [UUID: String] = [:]
+    /// The draft waiting for confirmation.
     private(set) var plan: AgentPlan?
+    /// The question waiting for an answer.
+    private(set) var question: AgentQuestion?
+    /// The most recently saved draft, while it can still be undone.
+    private(set) var undoablePlanID: UUID?
     private(set) var isWorking = false
     private(set) var isUpdatingReminders = false
-    private(set) var error: String?
-    private(set) var result: String?
-    private(set) var undoPlan: AgentPlan?
+    private var undoPlan: AgentPlan?
     private var messages: [AIMessage] = []
     private var known: [AgentRecord] = []
     private var requestTask: Task<Void, Never>?
@@ -37,13 +62,45 @@ final class AgentSession {
          reminderFeedback: @escaping () async -> String = { "" }) {
         self.read = read; self.commit = commit; self.currency = currency; self.reminderFeedback = reminderFeedback
     }
+
+    var isEmpty: Bool { entries.isEmpty }
+
+    func state(of plan: AgentPlan) -> AgentDraftState {
+        draftStates[plan.id] ?? .pending
+    }
+
+    /// Starts over: forgets the conversation, never the saved records.
+    func reset() {
+        guard !isWorking else { return }
+        generation += 1
+        requestTask?.cancel(); requestTask = nil
+        entries = []; draftStates = [:]; draftNotes = [:]; answers = [:]
+        plan = nil; question = nil; undoPlan = nil; undoablePlanID = nil
+        messages = []; known = []
+    }
+
+    /// Answers the open question with one of its options.
+    func answer(_ question: AgentQuestion, with option: String, configuration: AIConfiguration, key: String) {
+        guard !isWorking else { return }
+        answers[question.id] = option
+        send(option, images: [], configuration: configuration, key: key)
+    }
+
     func send(_ text: String, images: [AIImage], configuration: AIConfiguration, key: String) {
-        if images.isEmpty && ["取消", "算了", "不要了", "取消刚才的操作", "cancel"].contains(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) { cancel(); return }
-        guard !isWorking, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if images.isEmpty && ["取消", "算了", "不要了", "取消刚才的操作", "cancel"].contains(trimmed.lowercased()) {
+            entries.append(AgentEntry(kind: .user(trimmed, imageCount: 0)))
+            cancel()
+            return
+        }
+        guard !isWorking, !trimmed.isEmpty || !images.isEmpty else { return }
         generation += 1
         let ticket = generation
-        question = nil; error = nil; result = nil; undoPlan = nil
-        bubbles.append(AgentBubble(isUser: true, text: text + (images.isEmpty ? "" : "\n📷 \(images.count)")))
+        if let question, answers[question.id] == nil {
+            answers[question.id] = trimmed
+        }
+        question = nil
+        entries.append(AgentEntry(kind: .user(trimmed, imageCount: images.count)))
         messages.append(AIMessage(role: "user", text: text, images: images))
         isWorking = true
         requestTask = Task {
@@ -57,11 +114,9 @@ final class AgentSession {
                     let response = try await client.response(system: system, messages: messages)
                     guard ticket == generation else { return }
                     messages.append(AIMessage(role: "assistant", text: response.text, calls: response.calls, providerItems: response.providerItems))
-                    if response.calls.isEmpty {
-                        if !response.text.isEmpty { bubbles.append(AgentBubble(isUser: false, text: response.text)) }
-                        result = String(localized: "No changes saved. Actions require a confirmation card.")
-                        return
-                    }
+                    let reply = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !reply.isEmpty { entries.append(AgentEntry(kind: .assistant(reply))) }
+                    if response.calls.isEmpty { return }
                     var shouldReturn = false
                     for call in response.calls {
                         let output: String
@@ -70,7 +125,9 @@ final class AgentSession {
                             case "search_records": output = try search(call.arguments).json
                             case "ask_user":
                                 guard let text = call.arguments["question"]?.string, !text.isEmpty else { throw AgentPlanError.invalid("question") }
-                                question = AgentQuestion(text: text, options: Array((call.arguments["options"]?.array ?? []).compactMap(\.string).prefix(5)))
+                                let asked = AgentQuestion(text: text, options: Array((call.arguments["options"]?.array ?? []).compactMap(\.string).prefix(5)))
+                                question = asked
+                                entries.append(AgentEntry(kind: .question(asked)))
                                 output = "Question displayed. No changes saved. Await the user's answer."; shouldReturn = true
                             case "prepare_actions":
                                 guard let values = call.arguments["actions"] else { throw AgentPlanError.invalid("actions") }
@@ -78,7 +135,10 @@ final class AgentSession {
                                 guard actions.allSatisfy({ action in action.operation == .create || known.contains { $0.kind == action.kind && $0.id == action.id } }) else { throw AgentPlanError.missingRecord }
                                 let draft = try AgentPlanner.prepare(actions, records: read(),
                                     summary: call.arguments["summary"]?.string ?? "Review changes", currency: currency())
+                                if let previous = plan { draftStates[previous.id] = .replaced }
                                 plan = draft; question = nil
+                                draftStates[draft.id] = .pending
+                                entries.append(AgentEntry(kind: .draft(draft)))
                                 output = "Draft prepared for confirmation. Nothing saved yet."; shouldReturn = true
                             default: throw AgentPlanError.invalid("unregistered tool")
                             }
@@ -91,12 +151,13 @@ final class AgentSession {
                 }
                 throw AgentPlanError.invalid("too many steps; please narrow the request")
             } catch is CancellationError {
-                if ticket == generation { error = String(localized: "Cancelled. Nothing saved.") }
+                if ticket == generation { notice(String(localized: "Cancelled. Nothing saved."), isError: false) }
             } catch {
-                if ticket == generation { self.error = error.localizedDescription }
+                if ticket == generation { notice(Self.message(for: error), isError: true) }
             }
         }
     }
+
     private func search(_ args: JSONValue) throws -> JSONValue {
         guard let name = args["kind"]?.string, let kind = AgentRecordKind(rawValue: name) else { throw AgentPlanError.invalid("record type") }
         let query = args["query"]?.string ?? ""
@@ -127,49 +188,105 @@ final class AgentSession {
         }
         return .object(["records": try .from(page), "more": .bool(matches.count > page.count)])
     }
+
     func confirm() {
         guard !isWorking, let plan else { return }
         do {
             try commit(plan)
-            let inverse = AgentPlan(summary: String(localized: "Undo last action"), mutations: plan.mutations.map {
-                AgentMutation(kind: $0.kind, id: $0.id, before: $0.after, after: $0.before)
-            })
-            undoPlan = inverse
-            for mutation in plan.mutations {
-                known.removeAll { $0.kind == mutation.kind && $0.id == mutation.id }
-                if let after = mutation.after { known.append(.init(kind: mutation.kind, id: mutation.id, data: after)) }
+        } catch {
+            notice(Self.message(for: error), isError: true)
+            return
+        }
+        // Undo starts from what was actually stored, which can differ in form from the draft
+        // (normalized dates and ids), so its conflict check compares like with like.
+        let stored = read()
+        undoPlan = AgentPlan(summary: String(localized: "Undo last action"), mutations: plan.mutations.map { mutation in
+            AgentMutation(
+                kind: mutation.kind,
+                id: mutation.id,
+                before: stored.first { $0.kind == mutation.kind && $0.id == mutation.id }?.data,
+                after: mutation.before
+            )
+        })
+        undoablePlanID = plan.id
+        draftStates[plan.id] = .saved
+        for mutation in plan.mutations {
+            known.removeAll { $0.kind == mutation.kind && $0.id == mutation.id }
+            if let after = stored.first(where: { $0.kind == mutation.kind && $0.id == mutation.id }) { known.append(after) }
+        }
+        messages.append(AIMessage(role: "user", text: "客户端确认已成功保存以下操作：\((try? JSONValue.from(plan).json) ?? plan.summary)。后续修改这些记录要使用真实ID进行update。"))
+        self.plan = nil
+        let needsReminder = plan.mutations.contains { m in
+            let key = m.kind == .event ? "reminder_minutes" : m.kind == .task ? "reminderMinutes" : "reminder"
+            return [.event, .task, .anniversary].contains(m.kind) && m.after?[key] != nil && m.after?[key] != .null
+        }
+        if needsReminder {
+            isWorking = true; isUpdatingReminders = true
+            let planID = plan.id
+            Task {
+                let feedback = await reminderFeedback()
+                if !feedback.isEmpty { draftNotes[planID] = feedback }
+                isWorking = false; isUpdatingReminders = false
             }
-            messages.append(AIMessage(role: "user", text: "客户端确认已成功保存以下操作：\((try? JSONValue.from(plan).json) ?? plan.summary)。后续修改这些记录要使用真实ID进行update。"))
-            result = String(localized: "Changes saved.")
-            self.plan = nil
-            let needsReminder = plan.mutations.contains { m in
-                let key = m.kind == .event ? "reminder_minutes" : m.kind == .task ? "reminderMinutes" : "reminder"
-                return [.event, .task, .anniversary].contains(m.kind) && m.after?[key] != nil && m.after?[key] != .null
-            }
-            if needsReminder {
-                isWorking = true; isUpdatingReminders = true
-                Task {
-                    let feedback = await reminderFeedback()
-                    if !feedback.isEmpty { result = feedback }
-                    isWorking = false; isUpdatingReminders = false
-                }
-            }
-        } catch { self.error = error.localizedDescription }
+        }
     }
+
+    func discard() {
+        guard let plan else { return }
+        draftStates[plan.id] = .discarded
+        self.plan = nil
+        messages.append(AIMessage(role: "user", text: "用户已放弃当前草稿，尚未保存。后续不要自动恢复或执行它。"))
+    }
+
     func undo() {
-        guard !isWorking, let undoPlan else { return }
+        guard !isWorking, let undoPlan, let planID = undoablePlanID else { return }
         do {
-            try commit(undoPlan); self.undoPlan = nil
-            known = []; result = String(localized: "Last action undone.")
-            messages.append(AIMessage(role: "user", text: "客户端已撤销刚才的操作，请勿认为其仍然有效。"))
-        } catch { self.error = error.localizedDescription }
+            try commit(undoPlan)
+        } catch AgentPlanError.conflict {
+            notice(String(localized: "This record was edited after it was saved, so the change can't be undone automatically. Edit it directly instead."), isError: true)
+            self.undoPlan = nil; undoablePlanID = nil
+            return
+        } catch {
+            notice(Self.message(for: error), isError: true)
+            return
+        }
+        self.undoPlan = nil; undoablePlanID = nil
+        draftStates[planID] = .undone
+        known = []
+        messages.append(AIMessage(role: "user", text: "客户端已撤销刚才的操作，请勿认为其仍然有效。"))
     }
+
+    /// Stops the request in flight and drops the pending draft.
     func cancel() {
         // Confirmation commits synchronously. Waiting for notification feedback is not an
         // unsaved request and must never be reported as cancelled or rolled back.
         if isUpdatingReminders { return }
+        let wasWorking = isWorking
         generation += 1; requestTask?.cancel(); requestTask = nil; isWorking = false
-        plan = nil; question = nil; error = nil; result = String(localized: "Cancelled. Nothing saved.")
+        if let plan { draftStates[plan.id] = .discarded }
+        let hadDraft = plan != nil
+        plan = nil; question = nil
+        if wasWorking || hadDraft { notice(String(localized: "Cancelled. Nothing saved."), isError: false) }
         messages.append(AIMessage(role: "user", text: "用户已取消当前草稿，尚未保存。后续不要自动恢复或执行它。"))
+    }
+
+    private func notice(_ text: String, isError: Bool) {
+        entries.append(AgentEntry(kind: .notice(text, isError: isError)))
+    }
+
+    /// Readable messages for planner errors; other errors already describe themselves.
+    static func message(for error: any Error) -> String {
+        switch error as? AgentPlanError {
+        case .conflict?:
+            String(localized: "This record changed after the draft was prepared. Ask again to get an updated draft.")
+        case .missingRecord?:
+            String(localized: "The record wasn't found. Ask again and name it more precisely.")
+        case .scopeRequired?:
+            String(localized: "Choose this occurrence, this and future occurrences, or the entire series.")
+        case .invalid(let detail)?:
+            String(localized: "The assistant's draft was incomplete (\(detail)). Try rephrasing the request.")
+        case nil:
+            error.localizedDescription
+        }
     }
 }

@@ -238,6 +238,7 @@ struct EventEditorView: View {
             }
         } catch { self.error = error.localizedDescription; return }
         router.selectedDay = LocalDate(eventStart, timeZone: zone)
+        router.showToast(ToastMessage(text: originalEvent == nil ? "Event added" : "Event updated"))
         dismiss()
     }
 

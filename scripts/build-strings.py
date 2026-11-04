@@ -340,6 +340,7 @@ PLURALS = {
     "%lld years": ("%lld year", "%lld years", "%lld 周年"),
     "In %lld days": ("In %lld day", "In %lld days", "还有 %lld 天"),
     "%lld items could not be decrypted": ("%lld item could not be decrypted", "%lld items could not be decrypted", "有 %lld 项无法解密"),
+    "%lld images attached": ("%lld image attached", "%lld images attached", "附带 %lld 张图片"),
 }
 
 SOURCE_DIR = Path("ios/Nook")
