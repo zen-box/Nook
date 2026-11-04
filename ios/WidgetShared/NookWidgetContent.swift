@@ -47,7 +47,10 @@ struct NookWidgetContent: View {
                         HStack {
                             Text(item.title ?? String(localized: "Event")).lineLimit(1).privacySensitive(snapshot.showsDetails)
                             Spacer(minLength: 4)
-                            if item.allDay { Text("All day") } else { Text(item.start, style: .time) }
+                            if item.allDay {
+                                Text(item.start, format: .dateTime.month(.abbreviated).day())
+                                Text("All day")
+                            } else { Text(item.start, format: .dateTime.month(.abbreviated).day().hour().minute()) }
                         }.font(.caption)
                     }
                 }
@@ -57,7 +60,8 @@ struct NookWidgetContent: View {
             if let trip = snapshot.trip {
                 Text(trip.title ?? String(localized: "Next Trip")).font(.headline).lineLimit(compact ? 1 : 2).privacySensitive(snapshot.showsDetails)
                 if let departure = trip.departure, departure >= date {
-                    Text(departure, style: .time).font(compact ? .caption : .title3).monospacedDigit()
+                    Text(departure, format: .dateTime.month(.abbreviated).day().hour().minute())
+                        .font(compact ? .caption : .subheadline).monospacedDigit()
                 } else {
                     let zone = snapshot.timeZoneID.flatMap(TimeZone.init(identifier:)) ?? .current
                     let count = LocalDate(date, timeZone: zone).days(to: trip.startDate)
@@ -89,12 +93,17 @@ struct NookWidgetContent: View {
     private func event(_ item: WidgetAgendaItem, details: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.title ?? String(localized: "Next Event")).font(.headline).lineLimit(compact ? 1 : 2).privacySensitive(details)
-            if item.allDay { Text("All day").font(.caption) }
+            if item.allDay {
+                HStack(spacing: 5) {
+                    Text(item.start, format: .dateTime.month(.abbreviated).day())
+                    Text("All day")
+                }.font(.caption)
+            }
             else {
                 HStack(spacing: 5) {
-                    Text(item.start, style: .time).monospacedDigit()
+                    Text(item.start, format: .dateTime.month(.abbreviated).day().hour().minute()).monospacedDigit()
                     if item.start < date && item.end > date { Text("Now").font(.caption2).foregroundStyle(.secondary) }
-                }.font(compact ? .caption : .title3)
+                }.font(compact ? .caption : .subheadline)
             }
         }
     }
