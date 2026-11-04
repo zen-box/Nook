@@ -35,6 +35,18 @@ struct AttachmentStore: Sendable {
         folder.appending(path: "\(ref.id.uuidString.lowercased())-thumb.jpg")
     }
 
+    func fileURL(for ref: FileRef) -> URL {
+        ref.kind == .image ? imageURL(for: ref) : folder.appending(path: "\(ref.id.uuidString.lowercased()).\(ref.kind == .audio ? "m4a" : "bin")")
+    }
+
+    func saveAudio(_ source: URL) throws -> FileRef {
+        let data = try Data(contentsOf: source)
+        guard !data.isEmpty, data.count <= 250 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
+        let ref = FileRef(name: "Recording.m4a", kind: .audio, byteCount: Int64(data.count))
+        try data.write(to: fileURL(for: ref), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        return ref
+    }
+
     func saveImage(_ data: Data, name: String) throws -> FileRef {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let full = Self.jpeg(from: source, maxPixelSize: 2048, quality: 0.85),
@@ -54,6 +66,9 @@ struct AttachmentStore: Sendable {
     }
 
     func delete(_ ref: FileRef) {
+        // Immutable sync history can still reference removed attachments.
+        if FileManager.default.fileExists(atPath: folder.appending(path: ".retain-sync-history").path) { return }
+        try? FileManager.default.removeItem(at: fileURL(for: ref))
         try? FileManager.default.removeItem(at: imageURL(for: ref))
         try? FileManager.default.removeItem(at: thumbnailURL(for: ref))
     }

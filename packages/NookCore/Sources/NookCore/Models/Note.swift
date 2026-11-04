@@ -28,6 +28,7 @@ public struct ChecklistItem: Identifiable, Hashable, Codable, Sendable {
 
 public enum FileKind: String, Codable, Sendable {
     case image
+    case audio
     case pdf
     case document
     case other

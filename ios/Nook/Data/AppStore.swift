@@ -26,6 +26,8 @@ final class AppStore {
     private(set) var trips: [TripPlan] = []
     private(set) var anniversaries: [Anniversary] = []
     private(set) var ledger: [LedgerEntry] = []
+    private(set) var tasks: [TaskItem] = []
+    var dataRevision = 0
 
     /// Goes up each time a change could not be saved, so the screen can say so.
     private(set) var saveFailures = 0
@@ -48,9 +50,20 @@ final class AppStore {
 
     let vault: VaultStore
     let attachments: AttachmentStore
-    private let database: AppDatabase
-    private let defaults: UserDefaults
+    let database: AppDatabase
+    let defaults: UserDefaults
     @ObservationIgnored private var reminderSync: Task<Void, Never>?
+    @ObservationIgnored private var assistantStorage: AgentSession?
+
+    var assistantSession: AgentSession {
+        if let assistantStorage { return assistantStorage }
+        let session = AgentSession(read: { [weak self] in self?.assistantRecords() ?? [] }, commit: { [weak self] plan in
+            guard let self else { throw AgentPlanError.missingRecord }
+            try self.applyAssistantPlan(plan)
+        }, currency: { [weak self] in self?.currencyCode ?? "CNY" })
+        assistantStorage = session
+        return session
+    }
 
     private enum Keys {
         static let displayName = "profile.name"
@@ -88,10 +101,10 @@ final class AppStore {
     }
 
     var isEmpty: Bool {
-        notes.isEmpty && events.isEmpty && trips.isEmpty && anniversaries.isEmpty && ledger.isEmpty
+        notes.isEmpty && events.isEmpty && trips.isEmpty && anniversaries.isEmpty && ledger.isEmpty && tasks.isEmpty
     }
 
-    private func reload() {
+    func reload() {
         do {
             let snapshot = try database.loadSnapshot()
             notes = snapshot.notes
@@ -99,6 +112,7 @@ final class AppStore {
             trips = snapshot.trips
             anniversaries = snapshot.anniversaries
             ledger = snapshot.ledger
+            tasks = snapshot.tasks
         } catch {
             saveFailures += 1
         }
@@ -108,6 +122,7 @@ final class AppStore {
     private func write(_ change: (AppDatabase) throws -> Void) -> Bool {
         do {
             try change(database)
+            dataRevision += 1
             return true
         } catch {
             saveFailures += 1
@@ -237,9 +252,7 @@ final class AppStore {
     /// Today's events that have not finished yet.
     func todaysAgenda(now: Date) -> [ScheduleEvent] {
         let today = LocalDate.today(in: timeZone, now: now)
-        return ScheduleQuery.upcoming(events, after: now).filter {
-            LocalDate($0.start, timeZone: timeZone) == today
-        }
+        return events(on: today).filter { $0.effectiveEnd > now || $0.start >= now }
     }
 
     @discardableResult
@@ -271,10 +284,12 @@ final class AppStore {
     /// Rebuilds the system notifications for event reminders, one sync at a time.
     func syncReminders() {
         let events = self.events
+        let tasks = self.tasks
+        let anniversaries = self.anniversaries
         let previous = reminderSync
         reminderSync = Task {
             await previous?.value
-            await ReminderScheduler.sync(events: events)
+            await ReminderScheduler.sync(events: events, tasks: tasks, anniversaries: anniversaries)
         }
     }
 
@@ -354,6 +369,7 @@ final class AppStore {
         } else {
             anniversaries.append(saved)
         }
+        syncReminders()
         return true
     }
 
@@ -361,6 +377,7 @@ final class AppStore {
     func deleteAnniversary(_ id: UUID) -> Bool {
         guard write({ try $0.delete(Anniversary.self, id: id) }) else { return false }
         anniversaries.removeAll { $0.id == id }
+        syncReminders()
         return true
     }
 
@@ -463,7 +480,8 @@ final class AppStore {
             events: events,
             trips: trips,
             anniversaries: anniversaries,
-            ledger: ledger
+            ledger: ledger,
+            tasks: tasks
         )
     }
 
@@ -481,6 +499,7 @@ final class AppStore {
         let backup = try NookBackup.decode(data)
         try database.replaceAll(with: backup)
         reload()
+        dataRevision += 1
         syncReminders()
     }
 

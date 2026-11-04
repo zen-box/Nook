@@ -21,13 +21,13 @@ enum ReminderScheduler {
 
     /// Asks for permission the first time a reminder is needed, then replaces every pending
     /// reminder with the current list.
-    static func sync(events: [ScheduleEvent], now: Date = Date()) async {
+    static func sync(events: [ScheduleEvent], tasks: [TaskItem] = [], anniversaries: [Anniversary] = [], now: Date = Date()) async {
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
-        let ours = pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
-        center.removePendingNotificationRequests(withIdentifiers: ours)
-
-        let reminders = upcoming(events, now: now)
+        let reminders = ReminderPlan.make(events: events, tasks: tasks, anniversaries: anniversaries, now: now)
+        let desired = Set(reminders.map { identifierPrefix + $0.id })
+        let obsolete = pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) && !desired.contains($0) }
+        center.removePendingNotificationRequests(withIdentifiers: obsolete)
         guard !reminders.isEmpty else { return }
         var settings = await center.notificationSettings()
         if settings.authorizationStatus == .notDetermined {
@@ -38,20 +38,17 @@ enum ReminderScheduler {
 
         for reminder in reminders {
             let content = UNMutableNotificationContent()
-            content.title = reminder.event.title
-            var lines = [String(localized: "Starts at \(TimeText.time(reminder.event.start))")]
-            if let location = reminder.event.location, !location.isEmpty {
-                lines.append(location)
-            }
-            content.body = lines.joined(separator: " · ")
+            content.title = reminder.title
+            content.body = reminder.detail
             content.sound = .default
-            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
+            let components = reminder.repeating ?? Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
             let request = UNNotificationRequest(
-                identifier: identifierPrefix + reminder.event.id.uuidString,
+                identifier: identifierPrefix + reminder.id,
                 content: content,
-                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: reminder.repeating != nil)
             )
-            try? await center.add(request)
+            do { try await center.add(request) }
+            catch { UserDefaults.standard.set(String(localized: "Some reminders could not be scheduled. Open Nook to retry."), forKey: "reminders.error") }
         }
     }
 }

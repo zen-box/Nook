@@ -117,6 +117,9 @@ struct AnniversaryEditorView: View {
     @State private var date = Date()
     @State private var kind: AnniversaryKind = .birthday
     @State private var repeatsYearly = true
+    @State private var reminderEnabled = false
+    @State private var reminderTime = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var reminderDays: Set<Int> = [0]
     @State private var notes = ""
     @State private var loaded = false
     @State private var confirmDelete = false
@@ -137,7 +140,17 @@ struct AnniversaryEditorView: View {
                     Toggle("Repeats every year", isOn: $repeatsYearly)
                 } footer: {
                     Text("Use the original date, such as the date of birth, to see how many years it has been.")
-                    Text("Anniversaries show a countdown; they don't send notifications yet.")
+                }
+                Section("Reminder") {
+                    Toggle("Remind Me", isOn: $reminderEnabled)
+                    if reminderEnabled {
+                        DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                        ForEach([0, 1, 3, 7, 14, 30], id: \.self) { days in
+                            Toggle(days == 0 ? "On the day" : "\(days) days before", isOn: Binding(get: { reminderDays.contains(days) }, set: { on in
+                                if on { reminderDays.insert(days) } else { reminderDays.remove(days) }
+                            }))
+                        }
+                    }
                 }
                 Section("Details") {
                     TextField("Notes", text: $notes, axis: .vertical)
@@ -188,6 +201,10 @@ struct AnniversaryEditorView: View {
         kind = anniversary.kind
         repeatsYearly = anniversary.repeatRule == .yearly
         notes = anniversary.notes
+        if let reminder = anniversary.reminder {
+            reminderEnabled = true; reminderDays = Set(reminder.daysBefore)
+            reminderTime = Calendar.current.date(bySettingHour: reminder.hour, minute: reminder.minute, second: 0, of: Date()) ?? Date()
+        }
     }
 
     private func save() {
@@ -205,6 +222,8 @@ struct AnniversaryEditorView: View {
         anniversary.kind = kind
         anniversary.repeatRule = repeatsYearly ? .yearly : .never
         anniversary.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        anniversary.reminder = reminderEnabled ? AnniversaryReminder(hour: Calendar.current.component(.hour, from: reminderTime),
+            minute: Calendar.current.component(.minute, from: reminderTime), daysBefore: reminderDays.isEmpty ? [0] : reminderDays.sorted()) : nil
         guard store.saveAnniversary(anniversary) else { return }
         dismiss()
     }

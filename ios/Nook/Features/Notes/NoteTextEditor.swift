@@ -58,6 +58,7 @@ final class NoteInputView: UITextView {
 
 @MainActor @Observable
 final class NoteEditorSession: NSObject, UITextViewDelegate {
+    var onAudioTap: ((FileRef) -> Void)?
     private(set) var canUndo = false
     private(set) var canRedo = false
     private(set) var isEditing = false
@@ -102,6 +103,18 @@ final class NoteEditorSession: NSObject, UITextViewDelegate {
     func undo() { textView?.undoManager?.undo(); publish() }
     func redo() { textView?.undoManager?.redo(); publish() }
     func rememberPhotoSelection() { photoSelection = textView?.selectedRange }
+
+    func insertPlainText(_ text: String) {
+        guard let view = textView else { return }
+        replace(view.selectedRange, with: NSAttributedString(string: text + "\n", attributes: NoteTextCodec.attributes()))
+    }
+    func insertFile(_ ref: FileRef) {
+        guard let view = textView, let attachments else { return }
+        retain(ref)
+        let saved = photoSelection ?? view.selectedRange; photoSelection = nil
+        let range = NSRange(location: min(saved.location, view.textStorage.length), length: 0)
+        replace(range, with: NoteTextCodec.attributed([NoteRun("\n"), NoteRun(attachment: ref), NoteRun("\n")], attachments: attachments))
+    }
 
     func insertPhoto(_ data: Data, atSavedSelection: Bool = false) {
         guard let view = textView, let attachments else { return }
@@ -239,6 +252,13 @@ final class NoteEditorSession: NSObject, UITextViewDelegate {
         point.y -= view.textContainerInset.top
         let manager = view.layoutManager
         let index = manager.characterIndex(for: point, in: view.textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+        if index < view.textStorage.length,
+           let data = view.textStorage.attribute(NoteTextCodec.fileKey, at: index, effectiveRange: nil) as? Data,
+           let ref = try? JSONDecoder().decode(FileRef.self, from: data), ref.kind == .audio {
+            let glyph = manager.glyphRange(forCharacterRange: NSRange(location: index, length: 1), actualCharacterRange: nil)
+            if manager.boundingRect(forGlyphRange: glyph, in: view.textContainer).contains(point) { onAudioTap?(ref) }
+            return
+        }
         guard index < view.textStorage.length,
               let data = view.textStorage.attribute(NoteTextCodec.checkKey, at: index, effectiveRange: nil) as? Data,
               var item = try? JSONDecoder().decode(ChecklistItem.self, from: data), let attachments else { return }
@@ -357,7 +377,7 @@ enum NoteTextCodec {
                 result.append(marker)
             } else if let ref = run.attachment {
                 let attachment = NSTextAttachment()
-                attachment.image = UIImage(contentsOfFile: attachments.imageURL(for: ref).path)
+                attachment.image = (ref.kind == .audio ? audioImage(ref.name) : UIImage(contentsOfFile: attachments.imageURL(for: ref).path))
                     ?? UIImage(systemName: ref.kind == .image ? "photo.badge.exclamationmark" : "doc")
                 let marker = NSMutableAttributedString(attachment: attachment)
                 marker.addAttributes(attributes(), range: NSRange(location: 0, length: 1))
@@ -368,6 +388,14 @@ enum NoteTextCodec {
             }
         }
         return result
+    }
+
+    private static func audioImage(_ name: String) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 250, height: 50)).image { _ in
+            UIColor.secondarySystemBackground.setFill(); UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 250, height: 50), cornerRadius: 10).fill()
+            UIImage(systemName: "play.circle.fill")?.withTintColor(.systemBlue, renderingMode: .alwaysOriginal).draw(in: CGRect(x: 12, y: 12, width: 26, height: 26))
+            (name as NSString).draw(in: CGRect(x: 48, y: 16, width: 190, height: 22), withAttributes: [.font: UIFont.systemFont(ofSize: 14), .foregroundColor: UIColor.label])
+        }
     }
 
     static func runs(_ string: NSAttributedString) -> [NoteRun] {

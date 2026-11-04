@@ -131,7 +131,7 @@ final class VaultStore {
         )
         try database.save(record)
         state = .locked
-        try open(with: vaultKey)
+        try await open(with: vaultKey, ticket: ticket)
     }
 
     /// Throws `VaultCrypto.Failure.wrongPassword` for a wrong password.
@@ -152,7 +152,7 @@ final class VaultStore {
             try await upgradeLegacyVault(record, with: vaultKey, password: masterPassword, ticket: ticket)
         }
         guard ticket == operation else { throw CancellationError() }
-        try open(with: vaultKey)
+        try await open(with: vaultKey, ticket: ticket)
     }
 
     /// Face ID / passcode unlock with the keychain copy of the key. Returns false when that is
@@ -175,7 +175,7 @@ final class VaultStore {
                 quickUnlockError = String(localized: "Unlock once with your master password to enable quick unlock on this device.")
                 return false
             }
-            try open(with: vaultKey, rememberForQuickUnlock: false)
+            try await open(with: vaultKey, ticket: ticket, rememberForQuickUnlock: false)
             return true
         } catch {
             guard ticket == operation else { return false }
@@ -231,16 +231,20 @@ final class VaultStore {
         state = .needsSetup
     }
 
-    private func open(with vaultKey: SymmetricKey, rememberForQuickUnlock: Bool = true) throws {
-        var decrypted: [VaultItem] = []
-        var failures = 0
-        for record in try database.vaultRecords() {
-            if let item = try? VaultCrypto.open(record.sealed, id: record.id, category: record.category, version: record.keyVersion, with: vaultKey) {
-                decrypted.append(item)
-            } else {
-                failures += 1
+    private func open(with vaultKey: SymmetricKey, ticket: Int, rememberForQuickUnlock: Bool = true) async throws {
+        let database = self.database
+        let (decrypted, failures) = try await Task.detached(priority: .userInitiated) {
+            var decrypted: [VaultItem] = []
+            var failures = 0
+            for record in try database.vaultRecords() {
+                if let item = try? VaultCrypto.open(record.sealed, id: record.id, category: record.category, version: record.keyVersion, with: vaultKey) {
+                    decrypted.append(item)
+                } else { failures += 1 }
             }
-        }
+            return (decrypted, failures)
+        }.value
+        // Backgrounding or a newer unlock invalidates the whole result, including its key.
+        guard ticket == operation else { throw CancellationError() }
         key = vaultKey
         items = decrypted
         unreadableCount = failures

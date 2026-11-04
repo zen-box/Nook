@@ -19,6 +19,7 @@ public struct NookBackup: Codable, Equatable, Sendable {
     public var trips: [TripPlan]
     public var anniversaries: [Anniversary]
     public var ledger: [LedgerEntry]
+    public var tasks: [TaskItem]?
 
     public init(
         exportedAt: Date = Date(),
@@ -26,7 +27,8 @@ public struct NookBackup: Codable, Equatable, Sendable {
         events: [ScheduleEvent] = [],
         trips: [TripPlan] = [],
         anniversaries: [Anniversary] = [],
-        ledger: [LedgerEntry] = []
+        ledger: [LedgerEntry] = [],
+        tasks: [TaskItem]? = nil
     ) {
         self.format = NookBackup.format
         self.version = NookBackup.currentVersion
@@ -36,6 +38,7 @@ public struct NookBackup: Codable, Equatable, Sendable {
         self.trips = trips
         self.anniversaries = anniversaries
         self.ledger = ledger
+        self.tasks = tasks
     }
 
     public func encoded() throws -> Data {
@@ -70,5 +73,6 @@ public struct NookBackup: Codable, Equatable, Sendable {
         case trips = "plans"
         case anniversaries
         case ledger = "transactions"
+        case tasks
     }
 }

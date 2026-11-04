@@ -37,6 +37,14 @@ private struct HomeContent: View {
                 .padding(.horizontal, Metrics.screenPadding)
                 .padding(.bottom, 2)
                 VStack(spacing: Metrics.sectionSpacing) {
+                    HStack(spacing: 12) {
+                        Button { router.present(.assistant) } label: {
+                            Label("Ask Nook", systemImage: "sparkles").font(.subheadline.bold()).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Button { router.present(.tasks) } label: {
+                            Label("Tasks", systemImage: "checklist").font(.subheadline)
+                        }
+                    }.card(padding: 16)
                     UpcomingCard(day: router.selectedDay, today: today, now: now)
                     RecentNoteCard(note: store.recentNote)
                     MonthExpenseCard(today: today)

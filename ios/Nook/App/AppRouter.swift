@@ -41,6 +41,7 @@ enum AppRoute: Hashable {
 enum AppSheet: Identifiable, Hashable {
     case newEvent(LocalDate)
     case editEvent(UUID)
+    case editOccurrence(UUID, Date)
     case newTrip
     case editTrip(UUID)
     case newAnniversary
@@ -53,11 +54,14 @@ enum AppSheet: Identifiable, Hashable {
     case notifications
     case settings
     case pickDay
+    case assistant
+    case tasks
 
     var id: String {
         switch self {
         case .newEvent(let day): "newEvent-\(day.isoString)"
         case .editEvent(let id): "editEvent-\(id.uuidString)"
+        case .editOccurrence(let id, let date): "editOccurrence-\(id)-\(date.timeIntervalSince1970)"
         case .newTrip: "newTrip"
         case .editTrip(let id): "editTrip-\(id.uuidString)"
         case .newAnniversary: "newAnniversary"
@@ -69,6 +73,8 @@ enum AppSheet: Identifiable, Hashable {
         case .notifications: "notifications"
         case .settings: "settings"
         case .pickDay: "pickDay"
+        case .assistant: "assistant"
+        case .tasks: "tasks"
         }
     }
 }

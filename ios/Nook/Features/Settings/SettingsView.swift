@@ -123,6 +123,10 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
+                Section("Assistant") {
+                    NavigationLink("AI Settings") { AISettingsView() }
+                }
+
                 Section {
                     if let backupURL {
                         ShareLink(item: backupURL) {

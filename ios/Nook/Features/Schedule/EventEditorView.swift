@@ -5,6 +5,7 @@ struct EventEditorView: View {
     enum Mode {
         case create(LocalDate)
         case edit(UUID)
+        case occurrence(UUID, Date)
     }
 
     let mode: Mode
@@ -22,6 +23,12 @@ struct EventEditorView: View {
     @State private var tripID: UUID?
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var recurrence: EventRecurrence?
+    @State private var transport: TransportDetails?
+    @State private var scopeDialog = false
+    @State private var chosenScope: String?
+    @State private var deletingSeries = false
+    @State private var error: String?
 
     /// Minutes before the start.
     static let reminderOptions = [0, 5, 10, 15, 30, 60, 120, 1440]
@@ -39,7 +46,7 @@ struct EventEditorView: View {
     private var isEditing: Bool {
         switch mode {
         case .create: false
-        case .edit: true
+        case .edit, .occurrence: true
         }
     }
 
@@ -65,22 +72,17 @@ struct EventEditorView: View {
                     Toggle("All day", isOn: $isAllDay)
                     DatePicker("Starts", selection: $start, displayedComponents: components)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: components)
-                    if !isAllDay {
-                        Picker("Reminder", selection: $reminder) {
+                    Picker("Reminder", selection: $reminder) {
                             Text("None").tag(Int?.none)
                             ForEach(Self.reminderOptions, id: \.self) { minutes in
                                 Text(Self.reminderLabel(minutes)).tag(Int?.some(minutes))
                             }
-                        }
                     }
                 }
-                if isAllDay {
-                    Text("All-day events don't send reminders. Choose a start time to receive a notification.")
-                        .font(.footnote).foregroundStyle(Theme.textSecondary)
-                } else {
-                    Text("Reminds you before the start, using a local notification. Allow notifications in iOS Settings. Past reminder times are skipped.")
-                        .font(.footnote).foregroundStyle(Theme.textSecondary)
-                }
+                RecurrenceFields(rule: $recurrence, start: start)
+                TransportFields(details: $transport)
+                Text("Local notifications follow your saved times. Allow notifications in iOS Settings. Past reminder times are skipped.")
+                    .font(.footnote).foregroundStyle(Theme.textSecondary)
                 if !store.trips.isEmpty {
                     Section {
                         Picker("Trip", selection: $tripID) {
@@ -95,6 +97,7 @@ struct EventEditorView: View {
                     TextField("Add notes", text: $notes, axis: .vertical)
                         .lineLimit(3...)
                 }
+                if let error { Text(verbatim: error).foregroundStyle(Pastel.rose.strong) }
                 if isEditing {
                     Section {
                         Button("Delete Event", role: .destructive) {
@@ -122,6 +125,11 @@ struct EventEditorView: View {
                     deleteAndClose()
                 }
             }
+            .confirmationDialog("Apply to which events?", isPresented: $scopeDialog, titleVisibility: .visible) {
+                Button("Only This Event") { chosenScope = "this"; finishScopedAction() }
+                Button("This and Future Events") { chosenScope = "future"; finishScopedAction() }
+                Button("All Events in Series") { chosenScope = "series"; finishScopedAction() }
+            }
         }
         .onAppear { load() }
         .onChange(of: start) { _, newStart in
@@ -144,21 +152,25 @@ struct EventEditorView: View {
             end = start.addingTimeInterval(3600)
             // A new event during a trip belongs to it.
             tripID = store.trips.first { $0.startDate <= day && day <= $0.endDate }?.id
-        case .edit(let id):
+        case .edit(let id), .occurrence(let id, _):
             guard let event = store.event(id: id) else { return }
             title = event.title
             location = event.location ?? ""
             notes = event.notes
             category = event.category
             isAllDay = event.isAllDay
-            start = event.start
+            let selectedStart: Date
+            if case .occurrence(_, let date) = mode { selectedStart = date } else { selectedStart = event.start }
+            start = selectedStart
             reminder = event.reminderMinutes
+            recurrence = event.recurrence
+            transport = event.transport
             tripID = event.planID
             if event.isAllDay {
                 // Stored ends are exclusive (next midnight); show the last day instead.
-                end = max(event.effectiveEnd.addingTimeInterval(-1), event.start)
+                end = selectedStart.addingTimeInterval(max(0, event.effectiveEnd.timeIntervalSince(event.start) - 1))
             } else {
-                end = event.end ?? event.start.addingTimeInterval(3600)
+                end = selectedStart.addingTimeInterval(event.end.map { $0.timeIntervalSince(event.start) } ?? 3600)
             }
         }
     }
@@ -182,7 +194,7 @@ struct EventEditorView: View {
         switch mode {
         case .create:
             event = ScheduleEvent(title: trimmed, start: eventStart)
-        case .edit(let id):
+        case .edit(let id), .occurrence(let id, _):
             guard let existing = store.event(id: id) else {
                 dismiss()
                 return
@@ -197,17 +209,48 @@ struct EventEditorView: View {
         event.location = place.isEmpty ? nil : place
         event.notes = notes
         event.category = category
-        event.reminderMinutes = isAllDay ? nil : reminder
+        event.reminderMinutes = reminder
         event.planID = tripID
-        guard store.saveEvent(event) else { return }
+        event.recurrence = recurrence
+        event.transport = transport
+        do {
+            try AgentPlanner.validate(try .from(event), kind: .event)
+            if let existing = originalEvent, existing.recurrence != nil {
+                guard let chosenScope else { deletingSeries = false; scopeDialog = true; return }
+                var fields = try JSONValue.from(event).object!
+                for key in ["id", "created_at", "updated_at", "series_id", "occurrence_start"] { fields.removeValue(forKey: key) }
+                if recurrence == existing.recurrence { fields.removeValue(forKey: "recurrence") }
+                let action = AgentAction(kind: .event, operation: .update, id: existing.id, fields: fields,
+                                         scope: chosenScope, occurrenceStart: selectedOccurrence)
+                let plan = try AgentPlanner.prepare([action], records: store.assistantRecords(), summary: trimmed, currency: store.currencyCode)
+                try store.applyAssistantPlan(plan)
+            } else {
+                guard store.saveEvent(event) else { error = String(localized: "Couldn't save the change"); return }
+            }
+        } catch { self.error = error.localizedDescription; return }
         router.selectedDay = LocalDate(eventStart, timeZone: zone)
         dismiss()
     }
 
     private func deleteAndClose() {
-        if case .edit(let id) = mode {
-            guard store.deleteEvent(id) else { return }
+        if let existing = originalEvent {
+            if existing.recurrence != nil {
+                guard let chosenScope else { deletingSeries = true; scopeDialog = true; return }
+                do {
+                    let action = AgentAction(kind: .event, operation: .delete, id: existing.id, scope: chosenScope, occurrenceStart: selectedOccurrence)
+                    let plan = try AgentPlanner.prepare([action], records: store.assistantRecords(), summary: existing.title, currency: store.currencyCode)
+                    try store.applyAssistantPlan(plan)
+                } catch { self.error = error.localizedDescription; return }
+            } else { guard store.deleteEvent(existing.id) else { return } }
         }
         dismiss()
     }
+    private var originalEvent: ScheduleEvent? {
+        switch mode { case .create: nil; case .edit(let id), .occurrence(let id, _): store.event(id: id) }
+    }
+    private var selectedOccurrence: Date? {
+        if case .occurrence(_, let date) = mode { return date }
+        return originalEvent?.start
+    }
+    private func finishScopedAction() { if deletingSeries { deleteAndClose() } else { save() } }
 }

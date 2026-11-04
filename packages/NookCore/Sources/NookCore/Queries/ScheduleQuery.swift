@@ -4,7 +4,7 @@ public enum ScheduleQuery {
     /// Events taking place on `day`, all-day ones first, then by start time.
     public static func events(_ events: [ScheduleEvent], on day: LocalDate, timeZone: TimeZone) -> [ScheduleEvent] {
         let interval = day.interval(in: timeZone)
-        return events.filter { $0.overlaps(interval) }.sorted(by: agendaOrder)
+        return events.flatMap { $0.occurrences(in: interval) }.sorted(by: agendaOrder)
     }
 
     /// Events that are still going on or haven't started at `now`, soonest first.
@@ -21,7 +21,7 @@ public enum ScheduleQuery {
     public static func daysWithEvents(_ events: [ScheduleEvent], in days: [LocalDate], timeZone: TimeZone) -> Set<LocalDate> {
         Set(days.filter { day in
             let interval = day.interval(in: timeZone)
-            return events.contains { $0.overlaps(interval) }
+            return events.contains { !$0.occurrences(in: interval).isEmpty }
         })
     }
 

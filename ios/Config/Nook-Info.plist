@@ -29,6 +29,10 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Nook uses Face ID to unlock your vault.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nook uses the microphone when you choose voice input or record an audio note.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Nook transcribes your chosen voice input and recordings on this device.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

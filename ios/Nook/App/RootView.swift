@@ -145,6 +145,8 @@ private struct SheetContent: View {
             EventEditorView(mode: .create(day))
         case .editEvent(let id):
             EventEditorView(mode: .edit(id))
+        case .editOccurrence(let id, let date):
+            EventEditorView(mode: .occurrence(id, date))
         case .newTrip:
             TripEditorView(tripID: nil)
         case .editTrip(let id):
@@ -167,6 +169,10 @@ private struct SheetContent: View {
             SettingsView()
         case .pickDay:
             DayPickerSheet()
+        case .assistant:
+            AgentView()
+        case .tasks:
+            TasksView()
         }
     }
 }

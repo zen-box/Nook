@@ -14,6 +14,8 @@ struct NoteEditorView: View {
     @State private var photoSelection: PhotosPickerItem?
     @State private var isLoadingPhoto = false
     @State private var isVisible = false
+    @State private var recording = false
+    @State private var playingAudio: FileRef?
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -44,6 +46,7 @@ struct NoteEditorView: View {
         }
         .onAppear {
             isVisible = true
+            session.onAudioTap = { playingAudio = $0 }
             if draft == nil { draft = store.note(id: noteID) }
             if draft?.isBlank == true { titleFocused = true }
         }
@@ -68,6 +71,7 @@ struct NoteEditorView: View {
             }
             session.onChange = nil
             session.onPhotoError = nil
+            session.onAudioTap = nil
             store.discardIfBlank(noteID)
         }
         .confirmationDialog("Delete this note?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -75,6 +79,15 @@ struct NoteEditorView: View {
                 session.endEditing()
                 if store.deleteNote(noteID) { isVisible = false; dismiss() }
             }
+        }
+        .sheet(isPresented: $recording) {
+            AudioRecorderView { url in
+                let ref = try store.attachments.saveAudio(url)
+                session.insertFile(ref)
+            }.modifier(AppAppearance())
+        }
+        .sheet(item: $playingAudio) { ref in
+            AudioPlaybackView(url: store.attachments.fileURL(for: ref)) { text in session.insertPlainText(text) }.modifier(AppAppearance())
         }
     }
 
@@ -103,7 +116,7 @@ struct NoteEditorView: View {
     private var editingToolbar: some View {
         // Group's builder is nonisolated; capture UI state on the main actor first.
         let loadingPhoto = isLoadingPhoto
-        return HStack(spacing: 26) {
+        return HStack(spacing: 16) {
             Menu {
                 Button("Heading") { session.setStyle(.heading) }
                 Button("Body") { session.setStyle(.body) }
@@ -128,6 +141,9 @@ struct NoteEditorView: View {
             .simultaneousGesture(TapGesture().onEnded { session.rememberPhotoSelection() })
             .disabled(loadingPhoto)
             .accessibilityLabel(Text("Add Photo"))
+            Button { titleFocused = false; session.rememberPhotoSelection(); session.endEditing(); recording = true } label: {
+                Image(systemName: "mic").frame(width: 36, height: 42)
+            }.accessibilityLabel(Text("Record Audio"))
             Spacer(minLength: 0)
             Button { titleFocused = false; session.endEditing() } label: {
                 Image(systemName: "keyboard.chevron.compact.down").frame(width: 36, height: 42)

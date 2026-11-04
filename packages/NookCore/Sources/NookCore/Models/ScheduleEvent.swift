@@ -22,6 +22,11 @@ public struct ScheduleEvent: Identifiable, Hashable, Codable, Sendable {
     /// Minutes before `start` to remind, nil for no reminder.
     public var reminderMinutes: Int?
     public var planID: UUID?
+    public var recurrence: EventRecurrence?
+    public var transport: TransportDetails?
+    /// Stored overrides refer back to the series. Derived projections set occurrenceStart.
+    public var seriesID: UUID?
+    public var occurrenceStart: Date?
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -36,6 +41,10 @@ public struct ScheduleEvent: Identifiable, Hashable, Codable, Sendable {
         category: EventCategory = .other,
         reminderMinutes: Int? = nil,
         planID: UUID? = nil,
+        recurrence: EventRecurrence? = nil,
+        transport: TransportDetails? = nil,
+        seriesID: UUID? = nil,
+        occurrenceStart: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date? = nil
     ) {
@@ -49,6 +58,10 @@ public struct ScheduleEvent: Identifiable, Hashable, Codable, Sendable {
         self.category = category
         self.reminderMinutes = reminderMinutes
         self.planID = planID
+        self.recurrence = recurrence
+        self.transport = transport
+        self.seriesID = seriesID
+        self.occurrenceStart = occurrenceStart
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
     }
@@ -82,6 +95,9 @@ public struct ScheduleEvent: Identifiable, Hashable, Codable, Sendable {
         case category
         case reminderMinutes = "reminder_minutes"
         case planID = "plan_id"
+        case recurrence, transport
+        case seriesID = "series_id"
+        case occurrenceStart = "occurrence_start"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }

@@ -32,6 +32,7 @@ public struct Anniversary: Identifiable, Hashable, Codable, Sendable {
     public var kind: AnniversaryKind
     public var notes: String
     public var showCountdown: Bool
+    public var reminder: AnniversaryReminder?
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -43,6 +44,7 @@ public struct Anniversary: Identifiable, Hashable, Codable, Sendable {
         kind: AnniversaryKind = .anniversary,
         notes: String = "",
         showCountdown: Bool = true,
+        reminder: AnniversaryReminder? = nil,
         createdAt: Date = Date(),
         updatedAt: Date? = nil
     ) {
@@ -53,6 +55,7 @@ public struct Anniversary: Identifiable, Hashable, Codable, Sendable {
         self.kind = kind
         self.notes = notes
         self.showCountdown = showCountdown
+        self.reminder = reminder
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
     }
@@ -87,7 +90,17 @@ public struct Anniversary: Identifiable, Hashable, Codable, Sendable {
         case kind = "category"
         case notes = "description"
         case showCountdown = "show_countdown"
+        case reminder
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+}
+
+public struct AnniversaryReminder: Hashable, Codable, Sendable {
+    public var hour: Int
+    public var minute: Int
+    public var daysBefore: [Int]
+    public init(hour: Int = 9, minute: Int = 0, daysBefore: [Int] = [0]) {
+        self.hour = hour; self.minute = minute; self.daysBefore = daysBefore
     }
 }

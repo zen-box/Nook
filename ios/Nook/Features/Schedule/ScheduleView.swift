@@ -240,7 +240,7 @@ private struct DayTimeline: View {
                             isLast: index == events.count - 1,
                             isPast: !event.isAllDay && event.effectiveEnd <= now
                         ) {
-                            router.present(.editEvent(event.id))
+                            router.present(event.recurrence != nil ? .editOccurrence(event.id, event.start) : .editEvent(event.id))
                         }
                     }
                 }
@@ -410,7 +410,7 @@ private struct TripCard: View {
                 VStack(spacing: 8) {
                     ForEach(events) { event in
                         Button {
-                            router.present(.editEvent(event.id))
+                            router.present(event.recurrence != nil ? .editOccurrence(event.id, event.start) : .editEvent(event.id))
                         } label: {
                             TripEventRow(event: event)
                         }

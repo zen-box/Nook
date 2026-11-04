@@ -132,6 +132,33 @@ final class AppDatabase: Sendable {
                 t.add(column: "rich_content", .text)
             }
         }
+        migrator.registerMigration("v4-assistant-schedule") { db in
+            try db.alter(table: "event") { t in
+                t.add(column: "recurrence", .text)
+                t.add(column: "transport", .text)
+                t.add(column: "series_id", .blob)
+                t.add(column: "occurrence_start", .datetime)
+            }
+            try db.alter(table: "anniversary") { t in t.add(column: "reminder", .text) }
+            try db.create(table: "task_item") { t in
+                t.primaryKey("id", .blob)
+                t.column("title", .text).notNull()
+                t.column("notes", .text).notNull()
+                t.column("dueAt", .datetime)
+                t.column("reminderMinutes", .integer)
+                t.column("isCompleted", .boolean).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
+            }
+            try db.create(table: "agent_receipt") { t in
+                t.primaryKey("id", .text)
+                t.column("plan", .blob).notNull()
+            }
+            try db.create(table: "app_metadata") { t in
+                t.primaryKey("key", .text)
+                t.column("value", .blob).notNull()
+            }
+        }
         return migrator
     }
 }
@@ -145,6 +172,7 @@ struct DatabaseSnapshot: Sendable {
     var trips: [TripPlan] = []
     var anniversaries: [Anniversary] = []
     var ledger: [LedgerEntry] = []
+    var tasks: [TaskItem] = []
 }
 
 extension AppDatabase {
@@ -155,7 +183,8 @@ extension AppDatabase {
                 events: try ScheduleEvent.fetchAll(db),
                 trips: try TripPlan.fetchAll(db),
                 anniversaries: try Anniversary.fetchAll(db),
-                ledger: try LedgerEntry.fetchAll(db)
+                ledger: try LedgerEntry.fetchAll(db),
+                tasks: try TaskItem.fetchAll(db)
             )
         }
     }
@@ -203,11 +232,13 @@ extension AppDatabase {
             _ = try TripPlan.deleteAll(db)
             _ = try Anniversary.deleteAll(db)
             _ = try LedgerEntry.deleteAll(db)
+            _ = try TaskItem.deleteAll(db)
             for note in backup.notes { try note.save(db) }
             for event in backup.events { try event.save(db) }
             for trip in backup.trips { try trip.save(db) }
             for anniversary in backup.anniversaries { try anniversary.save(db) }
             for entry in backup.ledger { try entry.save(db) }
+            for task in backup.tasks ?? [] { try task.save(db) }
         }
     }
 
@@ -316,6 +347,10 @@ extension Anniversary: @retroactive FetchableRecord, @retroactive PersistableRec
 
 extension LedgerEntry: @retroactive FetchableRecord, @retroactive PersistableRecord {
     public static var databaseTableName: String { "ledger_entry" }
+}
+
+extension TaskItem: @retroactive FetchableRecord, @retroactive PersistableRecord {
+    public static var databaseTableName: String { "task_item" }
 }
 
 // Columns hold the raw values of these enums and ISO dates for `LocalDate`.
