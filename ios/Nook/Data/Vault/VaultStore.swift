@@ -304,6 +304,13 @@ final class VaultStore {
         }
     }
 
+    func reloadAfterImport() {
+        lock()
+        do { state = try database.vaultKey() == nil ? .needsSetup : .locked; storageFailed = false }
+        catch { storageFailed = true; state = .locked }
+        reloadCounts()
+    }
+
     // MARK: - Entries
 
     func save(_ item: VaultItem) throws {

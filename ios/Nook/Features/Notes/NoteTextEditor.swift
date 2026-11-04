@@ -199,9 +199,15 @@ final class NoteEditorSession: NSObject, UITextViewDelegate {
     private func replace(_ range: NSRange, with replacement: NSAttributedString, selection: NSRange? = nil) {
         guard let view = textView else { return }
         let original = view.textStorage.attributedSubstring(from: range)
+        let originalRuns = NoteTextCodec.runs(original)
+        let replacementLength = replacement.length
         let oldSelection = view.selectedRange
         view.undoManager?.registerUndo(withTarget: self) { target in
-            target.replace(NSRange(location: range.location, length: replacement.length), with: original, selection: oldSelection)
+            MainActor.assumeIsolated {
+                guard let attachments = target.attachments else { return }
+                target.replace(NSRange(location: range.location, length: replacementLength),
+                               with: NoteTextCodec.attributed(originalRuns, attachments: attachments), selection: oldSelection)
+            }
         }
         view.textStorage.replaceCharacters(in: range, with: replacement)
         view.selectedRange = selection ?? NSRange(location: range.location + replacement.length, length: 0)
