@@ -24,9 +24,11 @@ struct TripEditorView: View {
                     DatePicker("Starts", selection: $start, displayedComponents: .date)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: .date)
                 }
-                Section("Details") {
+                Section {
                     TextField("What's the plan?", text: $summary, axis: .vertical)
                         .lineLimit(3...)
+                } header: {
+                    Text("Details")
                 } footer: {
                     Text("A trip groups related events. To receive reminders, add timed events to it and set their reminder times.")
                 }

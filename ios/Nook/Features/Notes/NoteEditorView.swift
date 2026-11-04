@@ -101,7 +101,9 @@ struct NoteEditorView: View {
     }
 
     private var editingToolbar: some View {
-        HStack(spacing: 26) {
+        // Group's builder is nonisolated; capture UI state on the main actor first.
+        let loadingPhoto = isLoadingPhoto
+        return HStack(spacing: 26) {
             Menu {
                 Button("Heading") { session.setStyle(.heading) }
                 Button("Body") { session.setStyle(.body) }
@@ -119,12 +121,12 @@ struct NoteEditorView: View {
             .accessibilityIdentifier("note.checklist")
             PhotosPicker(selection: $photoSelection, matching: .images) {
                 Group {
-                    if isLoadingPhoto { ProgressView() }
+                    if loadingPhoto { ProgressView() }
                     else { Image(systemName: "photo.badge.plus") }
                 }.frame(width: 36, height: 42)
             }
             .simultaneousGesture(TapGesture().onEnded { session.rememberPhotoSelection() })
-            .disabled(isLoadingPhoto)
+            .disabled(loadingPhoto)
             .accessibilityLabel(Text("Add Photo"))
             Spacer(minLength: 0)
             Button { titleFocused = false; session.endEditing() } label: {
