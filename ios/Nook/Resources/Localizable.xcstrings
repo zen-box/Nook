@@ -1777,6 +1777,38 @@
         }
       }
     },
+    "Chat History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天记录"
+          }
+        }
+      }
+    },
+    "Chat history cleared": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat history cleared"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天记录已清除"
+          }
+        }
+      }
+    },
     "Check the HTTPS S3 endpoint, bucket, region and credentials.": {
       "localizations": {
         "en": {
@@ -1965,6 +1997,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "清除"
+          }
+        }
+      }
+    },
+    "Clear Chat History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Chat History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除聊天记录"
+          }
+        }
+      }
+    },
+    "Clear chat history?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear chat history?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除聊天记录？"
           }
         }
       }
@@ -4473,6 +4537,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "相关日程和计划便签会保留。"
+          }
+        }
+      }
+    },
+    "Keep Chat History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Chat History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存聊天记录"
           }
         }
       }
@@ -7213,6 +7293,22 @@
         }
       }
     },
+    "Saved only on this iPhone, in the same protected database as your records. Not included in S3 sync, encrypted backups or phone transfers. Images aren't kept, and only the latest 300 messages are. When off, chats last only until Nook is closed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved only on this iPhone, in the same protected database as your records. Not included in S3 sync, encrypted backups or phone transfers. Images aren't kept, and only the latest 300 messages are. When off, chats last only until Nook is closed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天记录只保存在这台 iPhone 上，与你的记录同在受系统保护的数据库中，不参与 S3 同步，也不包含在加密备份和换机迁移中。图片不保存，只保留最近 300 条。关闭后，聊天记录只保留到 Nook 被关闭为止。"
+          }
+        }
+      }
+    },
     "Scan New Phone": {
       "localizations": {
         "en": {
@@ -8233,6 +8329,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "聊天内容会被清空，已保存的记录不受影响。"
+          }
+        }
+      }
+    },
+    "The conversation is deleted from this iPhone. Notes, events and other records you saved are kept.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The conversation is deleted from this iPhone. Notes, events and other records you saved are kept."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话将从这台 iPhone 上删除，已保存的便签、日程等记录不受影响。"
           }
         }
       }

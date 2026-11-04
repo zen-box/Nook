@@ -302,5 +302,12 @@
   "Will be deleted": "将被删除",
   "You can undo this right after saving.": "保存后可以立即撤销。",
   "Open AI Settings": "打开 AI 设置",
-  "Tap to add. Touch and hold for more options.": "轻点添加，按住可选择更多操作。"
+  "Tap to add. Touch and hold for more options.": "轻点添加，按住可选择更多操作。",
+  "Chat History": "聊天记录",
+  "Keep Chat History": "保存聊天记录",
+  "Clear Chat History": "清除聊天记录",
+  "Clear chat history?": "清除聊天记录？",
+  "The conversation is deleted from this iPhone. Notes, events and other records you saved are kept.": "对话将从这台 iPhone 上删除，已保存的便签、日程等记录不受影响。",
+  "Saved only on this iPhone, in the same protected database as your records. Not included in S3 sync, encrypted backups or phone transfers. Images aren't kept, and only the latest 300 messages are. When off, chats last only until Nook is closed.": "聊天记录只保存在这台 iPhone 上，与你的记录同在受系统保护的数据库中，不参与 S3 同步，也不包含在加密备份和换机迁移中。图片不保存，只保留最近 300 条。关闭后，聊天记录只保留到 Nook 被关闭为止。",
+  "Chat history cleared": "聊天记录已清除"
 }

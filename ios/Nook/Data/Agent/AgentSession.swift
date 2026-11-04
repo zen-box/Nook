@@ -3,13 +3,19 @@ import Observation
 import NookCore
 
 struct AgentQuestion: Identifiable {
-    let id = UUID()
+    let id: UUID
     let text: String
     let options: [String]
+
+    init(id: UUID = UUID(), text: String, options: [String]) {
+        self.id = id
+        self.text = text
+        self.options = options
+    }
 }
 
 /// What happened to a draft card. Cards stay in the conversation with their outcome.
-enum AgentDraftState: Equatable {
+enum AgentDraftState: String, Codable {
     case pending
     case saved
     case discarded
@@ -51,16 +57,22 @@ final class AgentSession {
     private var undoPlan: AgentPlan?
     private var messages: [AIMessage] = []
     private var known: [AgentRecord] = []
+    /// The conversation came from storage, so records seen before the restart may have changed.
+    private var resumed = false
     private var requestTask: Task<Void, Never>?
     private var generation = 0
     private let read: () -> [AgentRecord]
     private let commit: (AgentPlan) throws -> Void
     private let currency: () -> String
     private let reminderFeedback: () async -> String
+    private let history: AgentHistoryStorage?
 
+    /// With `history`, the conversation is restored now and saved after every change.
     init(read: @escaping () -> [AgentRecord], commit: @escaping (AgentPlan) throws -> Void, currency: @escaping () -> String,
-         reminderFeedback: @escaping () async -> String = { "" }) {
+         reminderFeedback: @escaping () async -> String = { "" }, history: AgentHistoryStorage? = nil) {
         self.read = read; self.commit = commit; self.currency = currency; self.reminderFeedback = reminderFeedback
+        self.history = history
+        if let data = history?.load() { restore(from: data) }
     }
 
     var isEmpty: Bool { entries.isEmpty }
@@ -76,7 +88,8 @@ final class AgentSession {
         requestTask?.cancel(); requestTask = nil
         entries = []; draftStates = [:]; draftNotes = [:]; answers = [:]
         plan = nil; question = nil; undoPlan = nil; undoablePlanID = nil
-        messages = []; known = []
+        messages = []; known = []; resumed = false
+        history?.save(nil)
     }
 
     /// Answers the open question with one of its options.
@@ -102,15 +115,17 @@ final class AgentSession {
         question = nil
         entries.append(AgentEntry(kind: .user(trimmed, imageCount: images.count)))
         messages.append(AIMessage(role: "user", text: text, images: images))
+        saveHistory()
         isWorking = true
         requestTask = Task {
-            defer { if ticket == generation { isWorking = false; requestTask = nil } }
+            defer { if ticket == generation { isWorking = false; requestTask = nil; saveHistory() } }
             do {
                 let client = AIClient(configuration: configuration, apiKey: key)
                 for _ in 0..<6 {
                     try Task.checkCancellation()
                     var system = AgentTools.instructions(now: Date(), timeZone: .current, currency: currency())
                     if let plan { system += "\n当前未保存草稿（用户补充时替换它，不要新增重复内容）：\(try JSONValue.from(plan).json)" }
+                    if resumed { system += "\n这段对话是 App 重启后从本机恢复的，之前查到的记录可能已变化。修改或删除已有记录前，先用 search_records 重新查找。" }
                     let response = try await client.response(system: system, messages: messages)
                     guard ticket == generation else { return }
                     messages.append(AIMessage(role: "assistant", text: response.text, calls: response.calls, providerItems: response.providerItems))
@@ -195,6 +210,7 @@ final class AgentSession {
             try commit(plan)
         } catch {
             notice(Self.message(for: error), isError: true)
+            saveHistory()
             return
         }
         // Undo starts from what was actually stored, which can differ in form from the draft
@@ -220,6 +236,7 @@ final class AgentSession {
             let key = m.kind == .event ? "reminder_minutes" : m.kind == .task ? "reminderMinutes" : "reminder"
             return [.event, .task, .anniversary].contains(m.kind) && m.after?[key] != nil && m.after?[key] != .null
         }
+        saveHistory()
         if needsReminder {
             isWorking = true; isUpdatingReminders = true
             let planID = plan.id
@@ -227,6 +244,7 @@ final class AgentSession {
                 let feedback = await reminderFeedback()
                 if !feedback.isEmpty { draftNotes[planID] = feedback }
                 isWorking = false; isUpdatingReminders = false
+                saveHistory()
             }
         }
     }
@@ -236,6 +254,7 @@ final class AgentSession {
         draftStates[plan.id] = .discarded
         self.plan = nil
         messages.append(AIMessage(role: "user", text: "用户已放弃当前草稿，尚未保存。后续不要自动恢复或执行它。"))
+        saveHistory()
     }
 
     func undo() {
@@ -245,15 +264,18 @@ final class AgentSession {
         } catch AgentPlanError.conflict {
             notice(String(localized: "This record was edited after it was saved, so the change can't be undone automatically. Edit it directly instead."), isError: true)
             self.undoPlan = nil; undoablePlanID = nil
+            saveHistory()
             return
         } catch {
             notice(Self.message(for: error), isError: true)
+            saveHistory()
             return
         }
         self.undoPlan = nil; undoablePlanID = nil
         draftStates[planID] = .undone
         known = []
         messages.append(AIMessage(role: "user", text: "客户端已撤销刚才的操作，请勿认为其仍然有效。"))
+        saveHistory()
     }
 
     /// Stops the request in flight and drops the pending draft.
@@ -268,6 +290,94 @@ final class AgentSession {
         plan = nil; question = nil
         if wasWorking || hadDraft { notice(String(localized: "Cancelled. Nothing saved."), isError: false) }
         messages.append(AIMessage(role: "user", text: "用户已取消当前草稿，尚未保存。后续不要自动恢复或执行它。"))
+        saveHistory()
+    }
+
+    // MARK: - History
+
+    /// Writes the conversation to local storage, when the session has one.
+    func saveHistory() {
+        guard let history else { return }
+        guard !entries.isEmpty else {
+            history.save(nil)
+            return
+        }
+        guard let data = try? NookJSON.makeEncoder().encode(snapshot()) else { return }
+        history.save(data)
+    }
+
+    private func snapshot() -> AgentHistorySnapshot {
+        let kept = Array(entries.suffix(AgentHistorySnapshot.entryLimit))
+        var planIDs = Set<UUID>()
+        var questionIDs = Set<UUID>()
+        let stored = kept.map { entry -> AgentHistorySnapshot.StoredEntry in
+            switch entry.kind {
+            case .user(let text, let imageCount):
+                return .init(kind: .user, text: text, imageCount: imageCount)
+            case .assistant(let text):
+                return .init(kind: .assistant, text: text)
+            case .question(let question):
+                questionIDs.insert(question.id)
+                return .init(kind: .question, text: question.text, questionID: question.id, options: question.options)
+            case .draft(let plan):
+                planIDs.insert(plan.id)
+                return .init(kind: .draft, plan: plan)
+            case .notice(let text, let isError):
+                return .init(kind: .notice, text: text, isError: isError)
+            }
+        }
+        return AgentHistorySnapshot(
+            savedAt: Date(),
+            entries: stored,
+            draftStates: draftStates.filter { planIDs.contains($0.key) },
+            draftNotes: draftNotes.filter { planIDs.contains($0.key) },
+            answers: answers.filter { questionIDs.contains($0.key) },
+            pendingPlanID: plan.flatMap { planIDs.contains($0.id) ? $0.id : nil },
+            openQuestionID: question.flatMap { questionIDs.contains($0.id) ? $0.id : nil },
+            undoPlan: undoablePlanID.flatMap { planIDs.contains($0) ? undoPlan : nil },
+            undoablePlanID: undoablePlanID.flatMap { planIDs.contains($0) ? $0 : nil },
+            messages: AgentHistorySnapshot.trimmed(messages, limit: AgentHistorySnapshot.messageLimit).map { AgentHistorySnapshot.StoredMessage($0) }
+        )
+    }
+
+    /// Restores a saved conversation. Unreadable or newer data is ignored, never fatal.
+    private func restore(from data: Data) {
+        guard let snapshot = try? NookJSON.makeDecoder().decode(AgentHistorySnapshot.self, from: data),
+              snapshot.version <= AgentHistorySnapshot.currentVersion else { return }
+        var restored: [AgentEntry] = []
+        var plans: [UUID: AgentPlan] = [:]
+        var questions: [UUID: AgentQuestion] = [:]
+        for stored in snapshot.entries {
+            switch stored.kind {
+            case .user:
+                restored.append(AgentEntry(kind: .user(stored.text ?? "", imageCount: stored.imageCount ?? 0)))
+            case .assistant:
+                if let text = stored.text { restored.append(AgentEntry(kind: .assistant(text))) }
+            case .question:
+                guard let text = stored.text, let id = stored.questionID else { continue }
+                let question = AgentQuestion(id: id, text: text, options: stored.options ?? [])
+                questions[id] = question
+                restored.append(AgentEntry(kind: .question(question)))
+            case .draft:
+                guard let plan = stored.plan else { continue }
+                plans[plan.id] = plan
+                restored.append(AgentEntry(kind: .draft(plan)))
+            case .notice:
+                if let text = stored.text { restored.append(AgentEntry(kind: .notice(text, isError: stored.isError ?? false))) }
+            }
+        }
+        entries = restored
+        draftStates = snapshot.draftStates
+        draftNotes = snapshot.draftNotes
+        answers = snapshot.answers
+        plan = snapshot.pendingPlanID.flatMap { id in draftStates[id] == .pending ? plans[id] : nil }
+        question = snapshot.openQuestionID.flatMap { id in answers[id] == nil ? questions[id] : nil }
+        if let id = snapshot.undoablePlanID, draftStates[id] == .saved, let inverse = snapshot.undoPlan {
+            undoablePlanID = id
+            undoPlan = inverse
+        }
+        messages = snapshot.messages.map(\.message)
+        resumed = !messages.isEmpty
     }
 
     private func notice(_ text: String, isError: Bool) {

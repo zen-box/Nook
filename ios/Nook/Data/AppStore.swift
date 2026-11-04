@@ -50,6 +50,16 @@ final class AppStore {
         didSet { defaults.set(Int(monthlyBudgetMinor), forKey: Keys.budget); if oldValue != monthlyBudgetMinor { dataRevision += 1 } }
     }
 
+    /// Whether assistant conversations stay in the database between launches. A device setting:
+    /// it is not synced, and the conversation itself never leaves this phone.
+    var keepsAssistantHistory: Bool {
+        didSet {
+            guard oldValue != keepsAssistantHistory else { return }
+            defaults.set(keepsAssistantHistory, forKey: Keys.keepAssistantHistory)
+            if keepsAssistantHistory { assistantStorage?.saveHistory() } else { storeAssistantHistory(nil) }
+        }
+    }
+
     let vault: VaultStore
     let attachments: AttachmentStore
     let database: AppDatabase
@@ -97,15 +107,45 @@ final class AppStore {
             }
             if let error = UserDefaults.standard.string(forKey: "reminders.error") { return String(localized: "Records saved. ") + error }
             return String(localized: "Records saved and reminders scheduled.")
-        })
+        }, history: AgentHistoryStorage(load: { [weak self] in self?.loadAssistantHistory() },
+                                        save: { [weak self] data in self?.storeAssistantHistory(data) }))
         assistantStorage = session
         return session
+    }
+
+    /// True while the assistant is answering or saving; the conversation can't be cleared then.
+    var isAssistantWorking: Bool { assistantStorage?.isWorking ?? false }
+
+    /// Deletes the assistant conversation, on screen and in the database. Saved records stay.
+    func clearAssistantHistory() {
+        assistantStorage?.reset()
+        storeAssistantHistory(nil)
+    }
+
+    /// `app_metadata` row holding the conversation. Metadata is never exported, so it is left
+    /// out of S3 sync, backups and device transfers.
+    static let assistantHistoryKey = "assistant.history"
+
+    private func loadAssistantHistory() -> Data? {
+        guard keepsAssistantHistory else { return nil }
+        return try? database.metadata(Self.assistantHistoryKey)
+    }
+
+    /// Saves the conversation; nil, or keeping history off, deletes the saved copy. A failure
+    /// only loses chat history, never a record, so it isn't reported as a failed save.
+    private func storeAssistantHistory(_ data: Data?) {
+        if let data, keepsAssistantHistory {
+            try? database.setMetadata(data, key: Self.assistantHistoryKey)
+        } else {
+            try? database.removeMetadata(Self.assistantHistoryKey)
+        }
     }
 
     private enum Keys {
         static let displayName = "profile.name"
         static let currency = "finance.currency"
         static let budget = "finance.monthlyBudget"
+        static let keepAssistantHistory = "assistant.keepHistory"
     }
 
     init(
@@ -123,6 +163,7 @@ final class AppStore {
         displayName = defaults.string(forKey: Keys.displayName) ?? ""
         currencyCode = defaults.string(forKey: Keys.currency) ?? Self.defaultCurrency
         monthlyBudgetMinor = Int64(defaults.integer(forKey: Keys.budget))
+        keepsAssistantHistory = defaults.object(forKey: Keys.keepAssistantHistory) as? Bool ?? true
         reload()
     }
 

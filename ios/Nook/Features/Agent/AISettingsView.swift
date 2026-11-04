@@ -14,9 +14,12 @@ struct AISettingsView: View {
     @State private var testMessage: String?
     @State private var work: Task<Void, Never>?
     @State private var message: String?
+    @State private var confirmClearHistory = false
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        @Bindable var store = store
         Form {
             Section {
                 Picker("API Type", selection: $configuration.apiType) {
@@ -50,6 +53,15 @@ struct AISettingsView: View {
             } footer: {
                 Text("Sends a short request to the selected model using the values above, without saving them. No personal records are sent. API usage may be billed.")
             }
+            Section {
+                Toggle("Keep Chat History", isOn: $store.keepsAssistantHistory)
+                    .accessibilityIdentifier("ai.keepHistory")
+                Button("Clear Chat History", role: .destructive) { confirmClearHistory = true }
+                    .disabled(store.isAssistantWorking)
+                    .accessibilityIdentifier("ai.clearHistory")
+            } header: { Text("Chat History") } footer: {
+                Text("Saved only on this iPhone, in the same protected database as your records. Not included in S3 sync, encrypted backups or phone transfers. Images aren't kept, and only the latest 300 messages are. When off, chats last only until Nook is closed.")
+            }
             if let message { Section { Text(verbatim: message).font(.footnote) } }
             if !models.isEmpty {
                 Section {
@@ -75,6 +87,14 @@ struct AISettingsView: View {
         }
         .navigationTitle("AI Settings")
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } } }
+        .confirmationDialog("Clear chat history?", isPresented: $confirmClearHistory, titleVisibility: .visible) {
+            Button("Clear Chat History", role: .destructive) {
+                store.clearAssistantHistory()
+                router.showToast(ToastMessage(text: "Chat history cleared"))
+            }
+        } message: {
+            Text("The conversation is deleted from this iPhone. Notes, events and other records you saved are kept.")
+        }
         .onAppear {
             key = (try? SecretStore.read("ai.apiKey")).flatMap { String(data: $0, encoding: .utf8) } ?? ""
             models = AISettings.cachedModels(configuration)

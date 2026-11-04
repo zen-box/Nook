@@ -294,8 +294,8 @@ struct SettingsView: View {
 
     private static var version: String {
         let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "0.1.0"
-        let build = info?["CFBundleVersion"] as? String ?? "1"
+        let short = info?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+        let build = info?["CFBundleVersion"] as? String ?? "3"
         return "\(short) (\(build))"
     }
 }

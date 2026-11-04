@@ -50,8 +50,13 @@ struct AgentView: View {
                     .padding(Metrics.screenPadding)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: session?.entries.count) { _, _ in
-                    withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                .onChange(of: session?.entries.count) { old, _ in
+                    // Opening jumps straight to the newest message; new ones then scroll into view.
+                    if old == nil {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    } else {
+                        withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
                 }
                 .onChange(of: session?.isWorking) { _, _ in
                     withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("bottom", anchor: .bottom) }

@@ -57,4 +57,7 @@ extension AppDatabase {
     func setMetadata(_ value: Data, key: String) throws {
         try writer.write { db in try db.execute(sql: "INSERT OR REPLACE INTO app_metadata (key,value) VALUES (?,?)", arguments: [key, value]) }
     }
+    func removeMetadata(_ key: String) throws {
+        try writer.write { db in try db.execute(sql: "DELETE FROM app_metadata WHERE key = ?", arguments: [key]) }
+    }
 }

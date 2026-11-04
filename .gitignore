@@ -25,3 +25,12 @@ Thumbs.db
 
 # Local tool cache
 .nook-tools/
+
+# Local development specifications, guides and historical prototypes
+/docs/
+/archive/
+/*开发规格书*.md
+/*开发规划*.md
+/testvectors/README.md
+AGENTS.md
+CLAUDE.md

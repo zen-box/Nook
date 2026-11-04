@@ -1,88 +1,72 @@
+<p align="center">
+  <img src="logo.png" alt="Nook" width="96">
+</p>
+
 # Nook
 
-Nook 是一个面向 iPhone 的私密生活工具：便签、任务、日程、行程、纪念日和记账放在本地，密码库单独加密。需要多设备同步时，用户自行配置 S3；需要快捷处理事务时，用户自行接入 AI API。日常使用不依赖 Nook 服务器。
+给日常生活留一个自己的角落。
 
-## 当前技术栈
+Nook 是一款 iPhone 个人生活工具，把便签、任务、日程、行程、纪念日、记账与密码收在一起。日常数据保存在本机，无需注册 Nook 账号；云同步和 AI 按需接入，使用自己的存储与服务。
 
-| 层级 | 实现 |
-|---|---|
-| iOS 17+ 客户端 | Swift 6、SwiftUI、Observation，连续便签编辑器使用 UITextView |
-| 可移植业务核心 | `packages/NookCore`，Foundation / Codable，可在 Windows 测试 |
-| 本地持久化 | SQLite + GRDB 7.12.0，事务和版本化迁移 |
-| 密码库 | swift-sodium 0.11.0；Argon2id + XChaCha20-Poly1305 |
-| 可选 S3 同步 / 加密备份 | URLSession、SigV4、CryptoKit HKDF / AES-GCM |
-| 扫码迁移 | Network / Bonjour、X25519、双端验证码确认、加密分帧传输 |
-| 系统能力 | Keychain、LocalAuthentication、UserNotifications、Speech、AVFoundation、WidgetKit |
-| 工程 / 构建 | XcodeGen 2.46.0 + SwiftPM；GitHub Actions 原生测试与未签名 Release IPA；保留 Codemagic 工作流 |
+[下载最新版本](https://github.com/zen-box/Nook/releases/latest) · [反馈问题](https://github.com/zen-box/Nook/issues)
 
-`server/` 是早期 Go 健康检查骨架，当前 App 不调用它。旧 Flutter 原型与旧服务端规格保存在 `archive/`，不作为当前架构依据。
+## 记录、安排，再交给 Nook
 
-## 已接入的功能
+- **便签**：在一篇笔记中混排文字、勾选清单、照片与录音，支持基础富文本、撤销重做和语音转写。
+- **任务与日程**：管理待办与提醒，设置按天、周、月、年重复的安排，也能只修改一次或后续整个系列。
+- **行程**：整理旅行计划，记录车次、航班、出发和到达站点、时间、站台、登机口、车厢与座位，并设置出发提醒。
+- **纪念日**：记录生日与重要日子，查看倒计时并设置提醒。
+- **记账**：记录收支和转账，查看分类统计与月预算。
+- **密码库**：独立加密保存账号密码，支持主密码、系统身份认证快捷解锁与自动锁定。
+- **桌面小组件**：查看日程、下一段行程、便签标题和纪念日，或从快捷入口开始记录。
 
-- **连续便签**：文字、勾选清单、照片、录音在同一正文内混排；基础富文本、撤销 / 重做、录音播放和本机语音转写。
-- **任务与时间管理**：独立任务、日 / 周 / 月 / 年重复日程、星期选择、截止日期 / 次数、仅本次 / 本次及以后 / 整个系列修改；纪念日和本地提醒。
-- **行程交通**：在“新建 / 编辑行程”填写车次 / 航班、站点、出发到达时间、时区、登机口 / 站台、车厢 / 座位和提醒。行程和交通安排一起保存，日历显示关联的定时事项；普通新建日程不再放交通表单。信息由用户维护，不查询实时班次。
-- **记账**：收支与转账记录、分类统计、货币和月预算。金额使用整数最小货币单位，不自动换汇。
-- **事务助手**：搜索允许的普通记录，提出选项问题，生成可继续补充的草稿，确认后执行新增 / 修改 / 删除，支持撤销。密码库与基础设施秘密从能力入口隔离。
-- **AI 接入**：OpenAI Chat Completions / Responses、Gemini GenerateContent、Claude Messages；自定义 HTTPS API Base、Key、模型列表分页搜索 / 手填、图片输入。设置中的“测试连接”使用当前表单实际请求所选模型，显示响应耗时或错误，不发送个人记录；测试可能产生 API 费用。Agent 操作另需工具调用能力。
-- **密码库**：主密码、系统认证快捷解锁、后台锁定与快照遮罩；解密工作移出主线程。密码库不会进入 AI 请求。
-- **S3 加密同步**：自配 Endpoint / Bucket / Region / Prefix / 寻址方式 / 凭据；附件先上传，快照最后提交；保留并发冲突、删除墓碑和加密历史，支持显式选版和历史恢复。
-- **备份与迁移**：完整 `.nookbackup` 加密包含照片、录音、普通记录、设置与密封密码库；同局域网扫码迁移可选择携带 S3 连接。API Key 不迁移。
-- **小组件**：日程、下一段行程、最近便签标题、纪念日倒计时和快捷入口。默认隐藏详情；不共享便签正文、密码或密钥。设置提供共享状态、刷新和同布局预览。重签后的主 App 与扩展必须能访问同一个 App Group；可添加组件不等于共享权限有效。
-- **语言**：简体中文与完整英文 String Catalog；跟随 iOS 的应用语言，设置 → 语言可跳到系统设置选择。
+支持简体中文、英文，以及浅色、深色和跟随系统的外观。
 
-功能边界、密钥和恢复流程见 [当前规格书 v4](Personal-Hub-开发规格书-v2.md)、[同步与恢复](docs/sync-and-recovery.md)、[便签与提醒](docs/notes-and-reminders.md)、[密码库](docs/local-vault.md)。
+## 用一句话处理琐事
 
-## 当前阶段与开发顺序
+“记一笔午餐支出，32 元。”
 
-当前为 **0.1.0（build 2）的真机验收阶段**。主要功能已接入，原生测试和未签名 Release 构建已验证；真实存储服务、双手机迁移、系统权限及重签能力仍需分别验收。
+“把周一下午的例会改到两点。”
 
-下一步依次为：**P0 同步 / 备份 / 恢复与迁移可靠性 → P1 真实模型的 Agent 办事能力 → P2 日常编辑、提醒、解锁和语音体验**。每项完成条件及后置需求见 [规格书第 10 节](Personal-Hub-开发规格书-v2.md#10-当前开发规划)。
+“帮我整理明天去杭州的行程。”
 
-2026-11-04 的用户真机截图已确认该次重签安装无法取得小组件共享容器。数据型小组件目前受签名限制；主 App 与不读取摘要的快捷入口可继续使用。签名具备匹配 App Groups 权限后再验收桌面数据更新，不能把应用内预览当成共享成功。处理方法见 [小组件说明](docs/widgets.md)。
+Nook 事务助手可以查找记录、追问信息并准备新增、修改或删除草稿。检查草稿后再确认保存，也能撤销最近的操作。支持图片输入和语音输入；密码库始终不对助手开放。
 
-## 三种密钥不要混淆
+在 AI 设置中填写 API Base、API Key 和模型，支持以下接口：
 
-| 内容 | 用途 | 换手机 / 重装后需要 |
-|---|---|---|
-| S3 访问凭据 | 读写用户的存储桶 | 同步需重新配置，或通过受确认的设备迁移携带 |
-| `NOOK1.…` 恢复码 | 解密对应 S3 资料库或对应备份包 | 必须单独保管；仅有 S3 凭据不能解密 |
-| 密码库主密码 | 解开密封密码库 | 恢复码不会替代它；快捷解锁密钥不会迁移 |
+| 接口类型 | 支持方式 |
+| --- | --- |
+| OpenAI Chat Completions | 原生或兼容接口 |
+| OpenAI Responses | 原生或兼容接口 |
+| Gemini GenerateContent | 原生或兼容接口 |
+| Claude Messages | 原生或兼容接口 |
 
-丢失全部设备及对应恢复码后，S3 密文无法恢复。手动恢复备份会替换当前本地资料，请先导出当前备份。旧 JSON 导出仅供兼容，不含照片 / 录音文件、密码库和完整设置。
+可获取并搜索模型列表，也可手动填写模型 ID。设置提供连接测试；事务处理需要模型支持工具调用，图片识别需要模型支持视觉输入。请求直接发送至你配置的服务，可能产生该服务的 API 费用。
 
-## 开发与验证
+对话历史默认仅保存在当前 iPhone，可在 AI 设置中关闭或清除。保留最近 300 条对话条目，不保存输入图片，也不进入 S3 同步、加密备份或设备迁移。
 
-在 Windows 编辑 Swift，在 macOS / Xcode 编译和测试完整 App。Windows 通过不代表 SwiftUI / Apple 框架已经通过编译。
+## 数据由你保管
 
-```powershell
-swift test --package-path packages/NookCore
-```
+日常功能可在本机使用。需要备份或多设备使用时，再选择适合自己的方式：
 
-macOS（Xcode 已安装）运行：
+- **S3 加密同步**：连接自己的 S3 兼容存储，数据在设备上加密后上传，支持冲突处理与历史恢复。
+- **加密备份**：导出包含记录、照片、录音和密封密码库的 `.nookbackup` 文件。
+- **扫码迁移**：新旧手机在同一局域网连接，核对双端验证码后传输数据，可选择携带 S3 连接配置。
 
-```sh
-bash scripts/generate-project.sh
-IOS_TEST_DESTINATION='platform=iOS Simulator,name=你的可用 iPhone 模拟器' bash scripts/test-ios.sh
-bash scripts/build-ios-device-unsigned.sh
-```
+请单独保管恢复码和密码库主密码。S3 访问凭据用于连接存储，恢复码用于解密对应资料库或备份，主密码用于解锁密码库。重装后仅重新填写 S3 凭据，无法替代恢复码。AI API Key 不随备份或迁移转移。
 
-推送 `main` 或 `codex/**` 会触发 `.github/workflows/ios.yml`：核心包测试 → App 单元 / UI 测试 → 未签名 Release 真机构建。Actions 保存 `ios-diagnostics`（日志、xcresult、截图）和 `Nook-unsigned`（IPA）。下载 IPA 后由用户重签安装；模拟器 `.app` 不能改包成真机 IPA。
+## 安装与使用
 
-`codemagic.yaml` 仍提供 `ios-simulator-preview`、`ios-device-unsigned`、`ios-tests`。命令行脚本 `scripts/codemagic-build.ps1` 从环境变量读取 `CODEMAGIC_API_TOKEN` 与 `CODEMAGIC_APP_ID`；不要把 token 写入仓库。Preview 资格与额度以当前平台账户为准。
+需要 **iPhone · iOS 17 或更新版本**。
 
-本地核心测试当前为 **116 项**。App 单元、UI 和 Release 构建以交付提交对应 Actions 记录为准。真实 S3 厂商兼容性、双手机局域网迁移、Face ID、麦克风、通知和重签小组件还需在设备上验收；本机与模拟 HTTP 测试不会替代这些实测。
+1. 在 [Releases](https://github.com/zen-box/Nook/releases) 下载 `Nook-版本号-unsigned.ipa`。
+2. 使用自己的签名方式重签并安装到 iPhone。
+3. 打开 Nook 开始记录；AI 和 S3 可稍后在设置中配置。
 
-## 目录
+发布包为未签名 IPA，需要重签后才能安装。数据型小组件要求主 App 与扩展拥有一致且有效的 App Groups 授权；重签工具和描述文件需要保留该能力，否则组件无法读取主 App 的摘要。
 
-```text
-ios/                    主 App、Widgets、单元 / UI 测试与 XcodeGen 配置
-packages/NookCore/      模型、查询、重复规则、Agent 校验与同步冲突模型
-scripts/               构建、测试、图标和本地化生成
-.github/workflows/     原生 iOS 验证流水线
-docs/                  当前协议、安全边界、决策与验收说明
-server/                早期 Go 骨架；当前客户端不依赖
-archive/               Flutter 原型、历史规格
-```
+通知、麦克风、语音识别、相机与局域网访问会在使用对应功能时申请权限。拒绝某项权限会影响对应功能，可在 iOS 设置中调整。
 
-改动界面文字后执行 `python -I scripts/build-strings.py .`。图标由 `scripts/make-app-icon.py` 生成。当前搜索仍是本地内存过滤；FTS5、统一文件中心、EventKit、自动填充等未实现需求保留在规格书的后续清单。
+## 反馈
+
+遇到问题或有实用的改进建议，欢迎提交 [Issue](https://github.com/zen-box/Nook/issues)。请附上 Nook 版本、iOS 版本、操作步骤和必要截图，避免公开密码、恢复码、API Key 或私人记录。

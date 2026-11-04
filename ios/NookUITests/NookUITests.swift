@@ -60,6 +60,12 @@ final class NookUITests: XCTestCase {
         XCTAssertTrue(app.buttons["ai.testConnection"].exists)
         XCTAssertFalse(app.buttons["ai.testConnection"].isEnabled)
         capture(app, "AI设置-中文")
+        app.swipeUp()
+        let keepHistory = app.switches["ai.keepHistory"]
+        XCTAssertTrue(keepHistory.waitForExistence(timeout: 5))
+        XCTAssertEqual(keepHistory.value as? String, "1")
+        XCTAssertTrue(app.buttons["ai.clearHistory"].exists)
+        capture(app, "AI设置-聊天记录-中文")
     }
 
     @MainActor
