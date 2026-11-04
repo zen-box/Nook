@@ -9,7 +9,7 @@ final class NookUITests: XCTestCase {
     func testHomeShowsTheMainCards() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.scrollViews["screen.home"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["home.upcoming"].exists)
         XCTAssertTrue(app.buttons["home.recentNote"].exists)
@@ -19,7 +19,7 @@ final class NookUITests: XCTestCase {
     func testEveryTabOpens() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 15))
         for tab in ["notes", "vault", "schedule", "finance", "home"] {
             app.buttons["tab.\(tab)"].tap()
@@ -31,7 +31,7 @@ final class NookUITests: XCTestCase {
     func testOpeningANoteHidesTheTabBar() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
-        app.launch()
+        launch(app)
         let recentNote = app.buttons["home.recentNote"]
         XCTAssertTrue(recentNote.waitForExistence(timeout: 15))
         recentNote.tap()
@@ -44,7 +44,7 @@ final class NookUITests: XCTestCase {
     func testAssistantAndSettingsRenderInChinese() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", "light"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.buttons["home.assistant"].waitForExistence(timeout: 15))
         capture(app, "首页-中文")
         app.buttons["home.assistant"].tap()
@@ -61,7 +61,7 @@ final class NookUITests: XCTestCase {
     func testTasksCanBeCreatedAndEdited() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "light"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.buttons["home.tasks"].waitForExistence(timeout: 15))
         app.buttons["home.tasks"].tap()
         app.buttons["task.add"].tap()
@@ -81,7 +81,7 @@ final class NookUITests: XCTestCase {
     func testRecurringEventEditorExposesRepeatAndTransport() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "light"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.buttons["tab.schedule"].waitForExistence(timeout: 15))
         app.buttons["tab.schedule"].tap()
         let schedule = app.scrollViews["screen.schedule"]
@@ -103,7 +103,7 @@ final class NookUITests: XCTestCase {
     func testBackupAndMigrationSettingsRender() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", "dark"]
-        app.launch()
+        launch(app)
         XCTAssertTrue(app.buttons["home.settings"].waitForExistence(timeout: 15))
         app.buttons["home.settings"].tap()
         let backup = app.buttons["加密备份"]
@@ -115,6 +115,19 @@ final class NookUITests: XCTestCase {
         reveal(migration, in: app); migration.tap()
         XCTAssertTrue(app.buttons["新手机：接收数据"].waitForExistence(timeout: 5))
         capture(app, "设备迁移-深色")
+    }
+
+    @MainActor private func launch(_ app: XCUIApplication) {
+        app.launch()
+        // Demo fixtures include reminders. Handle the real first-use system prompt
+        // before inspecting the app, so it cannot obscure the home screenshot.
+        let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if alert.waitForExistence(timeout: 5) {
+            for label in ["Allow", "允许"] {
+                let button = alert.buttons[label]
+                if button.exists { button.tap(); break }
+            }
+        }
     }
 
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
