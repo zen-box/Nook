@@ -30,7 +30,13 @@ public enum NookJSON {
 /// RFC 3339 timestamps in UTC, e.g. "2026-11-04T02:00:00.000Z".
 public enum RFC3339 {
     public static func string(from date: Date) -> String {
-        Date.ISO8601FormatStyle(includingFractionalSeconds: true).format(date)
+        // Formatting a fractional Double directly can truncate 123 ms to 122 ms on a
+        // subsequent decode/encode. Quantize once to the documented millisecond format.
+        let milliseconds = (date.timeIntervalSince1970 * 1000).rounded()
+        let seconds = floor(milliseconds / 1000)
+        let fraction = Int(milliseconds - seconds * 1000)
+        let base = Date.ISO8601FormatStyle().format(Date(timeIntervalSince1970: seconds))
+        return String(base.dropLast()) + String(format: ".%03dZ", fraction)
     }
 
     /// Accepts timestamps with or without fractional seconds.

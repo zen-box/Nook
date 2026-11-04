@@ -206,6 +206,10 @@ public enum AgentPlanner {
             }
             var data = before.object!
             try merge(fields, into: &data, kind: .event); data["updated_at"] = .string(RFC3339.string(from: now))
+            if fields["recurrence"] == nil, let from = action.occurrenceStart,
+               let to = action.fields["start"]?.string.flatMap(RFC3339.date), let rule = event.recurrence {
+                data["recurrence"] = try .from(shifted(rule, from: from, to: to))
+            }
             try validate(.object(data), kind: .event)
             var result = [AgentMutation(kind: .event, id: event.id, before: before, after: .object(data))]
             for (record, child) in overrides {
@@ -220,6 +224,12 @@ public enum AgentPlanner {
                 }
                 var value = record.data.object!
                 try merge(patch, into: &value, kind: .event)
+                if let moved = action.fields["start"]?.string.flatMap(RFC3339.date), let original = child.occurrenceStart {
+                    value["occurrence_start"] = .string(RFC3339.string(from: original.addingTimeInterval(moved.timeIntervalSince(selected))))
+                }
+                if data["recurrence"] == .null {
+                    value["series_id"] = .null; value["occurrence_start"] = .null
+                }
                 value["updated_at"] = .string(RFC3339.string(from: now))
                 try validate(.object(value), kind: .event)
                 result.append(.init(kind: .event, id: record.id, before: record.data, after: .object(value)))
@@ -258,6 +268,10 @@ public enum AgentPlanner {
         if scope == "this" { fields["recurrence"] = .null }
         else if fields["recurrence"] == before["recurrence"] { fields.removeValue(forKey: "recurrence") }
         try merge(fields, into: &data, kind: .event)
+        if scope == "future", fields["recurrence"] == nil,
+           let moved = fields["start"]?.string.flatMap(RFC3339.date), let recurrence = copy.recurrence {
+            data["recurrence"] = try .from(shifted(recurrence, from: occurrence, to: moved))
+        }
         try validate(.object(data), kind: .event)
         result.append(AgentMutation(kind: .event, id: copy.id, before: scope == "this" ? existingOverride?.0.data : nil, after: .object(data)))
         if scope == "future" {
@@ -273,12 +287,29 @@ public enum AgentPlanner {
                 var value = record.data.object!
                 try merge(patch, into: &value, kind: .event)
                 value["series_id"] = .string(copy.id.uuidString)
+                if let moved = action.fields["start"]?.string.flatMap(RFC3339.date), let original = child.occurrenceStart {
+                    value["occurrence_start"] = .string(RFC3339.string(from: original.addingTimeInterval(moved.timeIntervalSince(occurrence))))
+                }
+                if data["recurrence"] == .null {
+                    value["series_id"] = .null; value["occurrence_start"] = .null
+                }
                 value["updated_at"] = .string(RFC3339.string(from: now))
                 try validate(.object(value), kind: .event)
                 result.append(.init(kind: .event, id: record.id, before: record.data, after: .object(value)))
             }
         }
         return result
+    }
+    private static func shifted(_ rule: EventRecurrence, from: Date, to: Date) -> EventRecurrence {
+        guard let zone = TimeZone(identifier: rule.timeZoneID) else { return rule }
+        let days = LocalDate(from, timeZone: zone).days(to: LocalDate(to, timeZone: zone))
+        var copy = rule
+        copy.excludedDates = rule.excludedDates.map { $0.adding(days: days) }
+        copy.endsOn = rule.endsOn?.adding(days: days)
+        if rule.frequency == .weekly {
+            copy.weekdays = rule.weekdays.map { (($0 - 1 + days % 7 + 7) % 7) + 1 }.sorted()
+        }
+        return copy
     }
 }
 

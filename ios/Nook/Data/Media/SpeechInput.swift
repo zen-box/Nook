@@ -17,9 +17,12 @@ final class SpeechInput {
     private var fileContinuation: CheckedContinuation<String, any Error>?
 
     func transcribe(url: URL) async throws -> String {
+        stop()
+        let ticket = generation
         let authorization = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
+        guard generation == ticket, !Task.isCancelled else { throw CancellationError() }
         guard authorization == .authorized, let recognizer = SFSpeechRecognizer(locale: .current),
               recognizer.isAvailable, recognizer.supportsOnDeviceRecognition else { throw CocoaError(.featureUnsupported) }
         let request = SFSpeechURLRecognitionRequest(url: url); request.requiresOnDeviceRecognition = true

@@ -101,4 +101,86 @@ struct AssistantAndSyncTests {
             #expect(reply.calls.count == 1 && reply.calls[0].name == "ask_user")
         }
     }
+    @Test func oldRulesJumpToTheRequestedRangeWithoutRestartingTheirCount() {
+        let origin = date("2000-01-03")
+        let range = DateInterval(start: date("2036-11-01", 0), end: date("2036-11-08", 0))
+        let weekly = EventRecurrence(frequency: .weekly, interval: 2, weekdays: [1, 3], timeZoneID: zone.identifier)
+        let values = weekly.starts(from: origin, in: range)
+        #expect(values == [date("2036-11-03"), date("2036-11-05")])
+        var limited = weekly; limited.occurrenceLimit = 3
+        #expect(limited.starts(from: origin, in: range).isEmpty)
+        let monthly = EventRecurrence(frequency: .monthly, interval: 2, timeZoneID: zone.identifier)
+        #expect(monthly.starts(from: date("2000-01-31"), in: DateInterval(start: date("2036-11-01", 0), end: date("2036-12-01", 0))) == [date("2036-11-30")])
+    }
+    @Test func allDayInstancesAndBoardingFollowTheirOwnOccurrence() throws {
+        let ny = TimeZone(identifier: "America/New_York")!
+        let first = LocalDate(isoString: "2027-03-07")!.startDate(in: ny)
+        let event = ScheduleEvent(title: "All day", start: first, end: first.addingTimeInterval(86400), isAllDay: true,
+            recurrence: .init(frequency: .weekly, timeZoneID: ny.identifier), transport: .init(boardingAt: first.addingTimeInterval(-1800)))
+        let target = LocalDate(isoString: "2027-03-14")!.startDate(in: ny)
+        let instance = event.instance(starting: target)
+        #expect(instance.end == LocalDate(isoString: "2027-03-15")!.startDate(in: ny))
+        #expect(instance.transport?.boardingAt == target.addingTimeInterval(-1800))
+        #expect(instance.displayID != event.displayID)
+    }
+    @Test func seriesOperationsIncludeOverridesAndDeletingUnlinksAreUndoable() throws {
+        var root = ScheduleEvent(title: "Meeting", start: date("2026-11-02"), recurrence: .init(frequency: .weekly, timeZoneID: zone.identifier))
+        root.recurrence?.excludedDates = [LocalDate(isoString: "2026-11-09")!]
+        var child = root.instance(starting: date("2026-11-09"))
+        child.id = UUID(); child.recurrence = nil; child.seriesID = root.id; child.title = "Custom"
+        let records: [AgentRecord] = try [root,child].map { .init(kind: .event, id: $0.id, data: try .from($0)) }
+        let deleted = try AgentPlanner.prepare([.init(kind: .event, operation: .delete, id: root.id, scope: "series")], records: records, summary: "Delete series", currency: "CNY")
+        #expect(deleted.mutations.count == 2 && deleted.mutations.allSatisfy { $0.after == nil })
+        let revised = try AgentPlanner.prepare([.init(kind: .event, operation: .update, id: root.id, fields: ["title": .string("Revised")], scope: "this", occurrenceStart: child.occurrenceStart)], records: records, summary: "Edit", currency: "CNY")
+        #expect(revised.mutations.last?.id == child.id && revised.mutations.last?.before != nil)
+        let future = try AgentPlanner.prepare([.init(kind: .event, operation: .update, id: root.id, fields: ["location": .string("Room A")], scope: "future", occurrenceStart: date("2026-11-09"))], records: records, summary: "Split", currency: "CNY")
+        let replacement = try #require(future.mutations.first { $0.before == nil }?.after).decoded(ScheduleEvent.self)
+        let reparented = try #require(future.mutations.first { $0.id == child.id }?.after).decoded(ScheduleEvent.self)
+        #expect(reparented.seriesID == replacement.id && reparented.title == "Custom" && reparented.location == "Room A")
+        let trip = TripPlan(title: "Trip", startDate: .today(), endDate: .today(), noteID: UUID())
+        var linked = root; linked.planID = trip.id
+        let unlink = try AgentPlanner.prepare([.init(kind: .trip, operation: .delete, id: trip.id)], records: [
+            .init(kind: .trip, id: trip.id, data: try .from(trip)), .init(kind: .event, id: linked.id, data: try .from(linked))
+        ], summary: "Remove trip", currency: "CNY")
+        let change = try #require(unlink.mutations.first { $0.kind == .event })
+        #expect(change.after?["plan_id"] == .null && change.before?["plan_id"] != .null)
+    }
+    @Test func syncVersionCanMergeWithItsPersistedCopyAndRestoreDominatesHistory() throws {
+        var document = SyncDocument(libraryID: UUID())
+        let device = UUID()
+        try document.capture(["note/1": .string("Before")], baseline: [:], deviceID: device)
+        let persisted = try NookJSON.makeDecoder().decode(SyncDocument.self, from: NookJSON.makeEncoder().encode(document))
+        try document.merge(persisted)
+        #expect(document.conflicts.isEmpty)
+        var other = document
+        try other.capture(["note/1": .string("After")], baseline: document.materialized, deviceID: UUID())
+        try document.merge(other)
+        try document.restore(["note/1": .string("Restored")], deviceID: device)
+        try document.merge(other)
+        #expect(document.materialized["note/1"] == .string("Restored") && document.conflicts.isEmpty)
+    }
+    @Test func millisecondEncodingRemainsStableAtFractionalBoundaries() throws {
+        for seconds in [1_793_750_400.123, 1_793_750_400.9996, -0.001, 0.123, 1_793_750_400.500] {
+            let encoded = RFC3339.string(from: Date(timeIntervalSince1970: seconds))
+            let decoded = try #require(RFC3339.date(from: encoded))
+            #expect(RFC3339.string(from: decoded) == encoded)
+        }
+    }
+    @Test func parallelToolResultsStayTogetherAndProviderStateSurvives() throws {
+        for type in [AIProtocol.generateContent, .messages] {
+            let client = AIClient(configuration: .init(apiType: type, baseURL: type.defaultBase, model: "test"), apiKey: "fake")
+            let part: JSONValue = .object(["functionCall": .object(["name": .string("ask_user"), "args": .object([:])]), "thoughtSignature": .string("opaque-provider-state")])
+            let messages: [AIMessage] = [
+                .init(role: "user", text: "Find"),
+                .init(role: "assistant", calls: [.init(id: "c1", name: "search_records", arguments: .object([:]), providerPart: part), .init(id: "c2", name: "search_records", arguments: .object([:]))]),
+                .init(role: "tool", text: "One", toolCallID: "c1", toolName: "search_records"),
+                .init(role: "tool", text: "Two", toolCallID: "c2", toolName: "search_records")]
+            let request = try client.makeRequest(system: "Nook", messages: messages)
+            let body = try JSONDecoder().decode(JSONValue.self, from: #require(request.httpBody))
+            let turns = try #require(body[type == .messages ? "messages" : "contents"]?.array)
+            #expect(turns.count == 3)
+            #expect(turns.last?[type == .messages ? "content" : "parts"]?.array?.count == 2)
+            if type == .generateContent { #expect(turns[1]["parts"]?.array?.first?["thoughtSignature"]?.string == "opaque-provider-state") }
+        }
+    }
 }

@@ -41,7 +41,7 @@ struct AttachmentStore: Sendable {
 
     func saveAudio(_ source: URL) throws -> FileRef {
         let data = try Data(contentsOf: source)
-        guard !data.isEmpty, data.count <= 250 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
+        guard !data.isEmpty, data.count <= 90 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
         let ref = FileRef(name: "Recording.m4a", kind: .audio, byteCount: Int64(data.count))
         try data.write(to: fileURL(for: ref), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         return ref

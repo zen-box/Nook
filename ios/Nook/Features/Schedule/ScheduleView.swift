@@ -288,6 +288,9 @@ private struct TimelineRow: View {
                                 .foregroundStyle(Theme.textSecondary)
                                 .lineLimit(1)
                         }
+                        if let transport = event.transport, !transport.readableSummary.isEmpty {
+                            Text(verbatim: transport.readableSummary).font(NookFont.caption).foregroundStyle(Theme.textSecondary).lineLimit(3)
+                        }
                     }
                     Spacer(minLength: 4)
                     Image(systemName: event.category.symbol)
@@ -500,6 +503,9 @@ private struct TripEventRow: View {
                 }
                 .font(NookFont.caption)
                 .foregroundStyle(Theme.textSecondary)
+                if let transport = event.transport, !transport.readableSummary.isEmpty {
+                    Text(verbatim: transport.readableSummary).font(NookFont.caption).foregroundStyle(Theme.textSecondary).lineLimit(3)
+                }
             }
             Spacer(minLength: 4)
             Image(systemName: event.category.symbol)

@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "NSMicrophoneUsageDescription": {
+      "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Nook uses the microphone when you choose voice input or record an audio note."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Nook 仅在你使用语音输入或录制便签时使用麦克风。"}}}
+    },
+    "NSCameraUsageDescription": {
+      "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Nook uses the camera when you scan a new device's temporary migration code."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Nook 使用相机扫描新设备的临时迁移二维码。"}}}
+    },
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Nook connects to your other device on the local network when you choose device migration."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Nook 仅在你进行设备迁移时通过本地网络连接另一台设备。"}}}
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Nook transcribes your chosen voice input and recordings on this device."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Nook 在本机将你选择的语音输入和便签录音转换为文字。"}}}
+    },
     "NSFaceIDUsageDescription" : {
       "comment" : "Privacy - Face ID Usage Description",
       "extractionState" : "extracted_with_value",

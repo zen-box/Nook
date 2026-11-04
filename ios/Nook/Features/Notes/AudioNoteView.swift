@@ -19,7 +19,7 @@ struct AudioRecorderView: View {
                     Text(Duration.seconds(recorder?.currentTime ?? 0).formatted(.time(pattern: .minuteSecond))).font(.largeTitle.monospacedDigit())
                 }
                 if recorder != nil {
-                    Button(paused ? "Resume Recording" : "Pause Recording") {
+                    Button(LocalizedStringKey(paused ? "Resume Recording" : "Pause Recording")) {
                         if paused { recorder?.record() } else { recorder?.pause() }
                         paused.toggle()
                     }.buttonStyle(.bordered)
@@ -51,7 +51,7 @@ struct AudioRecorderView: View {
             let url = FileManager.default.temporaryDirectory.appending(path: "Nook-Recording-\(UUID()).m4a")
             temporary = url
             let recorder = try AVAudioRecorder(url: url, settings: [AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 1, AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue])
+                AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 1, AVEncoderBitRateKey: 64_000, AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue])
             guard recorder.record(forDuration: 3600) else { throw CocoaError(.fileWriteUnknown) }
             self.recorder = recorder
         } catch { self.error = error.localizedDescription }

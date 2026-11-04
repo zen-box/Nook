@@ -69,7 +69,7 @@ struct AgentView: View {
             .navigationTitle("Nook Assistant").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { speech.stop(); dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) { NavigationLink { AISettingsView() } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel(Text("AI Settings")) }
+                ToolbarItem(placement: .topBarTrailing) { NavigationLink { AISettingsView() } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel(Text("AI Settings")).accessibilityIdentifier("assistant.settings") }
             }
             .onAppear { session = store.assistantSession }
             .onDisappear { speech.stop() }
@@ -149,6 +149,7 @@ struct AgentView: View {
 @MainActor
 private struct AgentMutationRow: View {
     let mutation: AgentMutation
+    @Environment(AppStore.self) private var store
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Label {
@@ -156,23 +157,89 @@ private struct AgentMutationRow: View {
             } icon: { Image(systemName: mutation.after == nil ? "trash" : mutation.before == nil ? "plus.circle" : "pencil.circle") }
             ForEach(changes, id: \.self) { key in
                 HStack(alignment: .top) {
-                    Text(verbatim: key).foregroundStyle(Theme.textSecondary).frame(width: 100, alignment: .leading)
+                    Text(LocalizedStringKey(label(key))).foregroundStyle(Theme.textSecondary).frame(width: 86, alignment: .leading)
                     VStack(alignment: .leading) {
-                        if let old = mutation.before?[key], old != .null { Text(verbatim: display(old)).strikethrough().foregroundStyle(Theme.textSecondary) }
-                        if let new = mutation.after?[key], new != .null { Text(verbatim: display(new)) }
+                        if let old = mutation.before?[key], old != .null { Text(verbatim: display(old, key: key)).strikethrough().foregroundStyle(Theme.textSecondary).lineLimit(6) }
+                        if let new = mutation.after?[key], new != .null { Text(verbatim: display(new, key: key)).lineLimit(6) }
+                        else if mutation.after != nil { Text("Not set").foregroundStyle(Theme.textSecondary) }
                     }
                 }.font(.caption)
             }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(12).background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 12))
     }
     private var changes: [String] {
-        let excluded: Set<String> = ["id", "created_at", "updated_at", "createdAt", "updatedAt", "title"]
+        let excluded: Set<String> = ["id", "created_at", "updated_at", "createdAt", "updatedAt", "title", "series_id", "occurrence_start", "rich_content", "file_refs", "todos"]
         let keys = Set(mutation.after?.object?.keys.map { $0 } ?? []).union(mutation.before?.object?.keys.map { $0 } ?? [])
-        return keys.filter { !excluded.contains($0) && mutation.before?[$0] != mutation.after?[$0] && mutation.after?[$0] != .string("") }.sorted()
+        return keys.filter { key in
+            guard !excluded.contains(key), mutation.before?[key] != mutation.after?[key] else { return false }
+            if mutation.before == nil {
+                guard let value = mutation.after?[key], value != .null, value != .string(""), value != .array([]), value != .bool(false) else { return false }
+            }
+            return true
+        }.sorted()
     }
-    private func display(_ value: JSONValue) -> String {
+    private func label(_ key: String) -> String {
+        switch key {
+        case "body": "Content"
+        case "start", "start_date": "Starts"
+        case "end", "end_date": "Ends"
+        case "all_day": "All day"
+        case "location", "destination": "Location"
+        case "notes", "note", "summary", "description": "Notes"
+        case "category": "Category"
+        case "type": "Type"
+        case "amount_minor": "Amount"
+        case "currency": "Currency"
+        case "occurred_at": "Date"
+        case "reminder_minutes", "reminderMinutes", "reminder": "Reminder"
+        case "recurrence", "repeat_rule": "Repeat"
+        case "transport": "Travel Information"
+        case "plan_id": "Trip"
+        case "note_id": "Trip Plan Note"
+        case "dueAt": "Due"
+        case "isCompleted": "Completed"
+        case "pinned": "Pinned"
+        case "show_countdown": "Countdown"
+        case "date": "Date"
+        case "tags": "Tags"
+        default: "Details"
+        }
+    }
+    private func localized(_ value: String) -> String { String(localized: String.LocalizationValue(value)) }
+    private func display(_ value: JSONValue, key: String) -> String {
+        if key == "amount_minor", let amount = value.int {
+            return Money(minorUnits: Int64(amount), currencyCode: mutation.after?["currency"]?.string ?? mutation.before?["currency"]?.string ?? store.currencyCode).formatted()
+        }
+        if key == "reminder_minutes" || key == "reminderMinutes", let minutes = value.int {
+            return minutes == 0 ? String(localized: "At start time") : String(localized: "\(minutes) minutes before")
+        }
+        if key == "plan_id", let id = value.string.flatMap(UUID.init(uuidString:)) { return store.trip(id: id)?.title ?? String(localized: "Trip") }
+        if key == "note_id", let id = value.string.flatMap(UUID.init(uuidString:)) { return store.note(id: id)?.title ?? String(localized: "Trip Plan Note") }
+        if key == "transport", let details = try? value.decoded(TransportDetails.self) { return details.readableSummary }
+        if key == "recurrence", let rule = try? value.decoded(EventRecurrence.self) {
+            let frequency = ["daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "yearly": "Yearly"][rule.frequency.rawValue]!
+            var parts = [localized(frequency), String(localized: "Every \(rule.interval)")]
+            if rule.frequency == .weekly {
+                let days = rule.weekdays.map { Calendar.current.shortStandaloneWeekdaySymbols[$0 % 7] }.joined(separator: ", ")
+                if !days.isEmpty { parts.append(days) }
+            }
+            parts.append(rule.timeZoneID)
+            if let end = rule.endsOn { parts.append(end.isoString) }
+            if let count = rule.occurrenceLimit { parts.append(String(localized: "\(count) occurrences")) }
+            return parts.joined(separator: " · ")
+        }
+        if key == "reminder", let reminder = try? value.decoded(AnniversaryReminder.self) {
+            let days = reminder.daysBefore.map { $0 == 0 ? String(localized: "On the day") : String(localized: "\($0) days before") }
+            return String(format: "%02d:%02d", reminder.hour, reminder.minute) + " · " + days.joined(separator: ", ")
+        }
+        if let boolean = value.bool { return boolean ? String(localized: "Yes") : String(localized: "No") }
+        if let items = value.array { return items.compactMap(\.string).joined(separator: ", ") }
         if let string = value.string {
             if let date = RFC3339.date(from: string) { return date.formatted(date: .abbreviated, time: .shortened) }
+            if key == "category" || key == "type" || key == "repeat_rule" {
+                let names = ["work": "Work", "travel": "Travel", "life": "Life", "personal": "Personal", "health": "Health", "other": "Other", "others": "Others", "food": "Food & Dining", "shopping": "Shopping", "transport": "Transport", "housing": "Housing", "entertainment": "Entertainment", "salary": "Salary", "birthday": "Birthday", "anniversary": "Anniversary", "project": "Project", "custom": "Custom", "expense": "Expense", "income": "Income", "transfer": "Transfer", "yearly": "Yearly", "none": "Never"]
+                return localized(names[string] ?? string)
+            }
             return string
         }
         return value.json

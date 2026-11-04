@@ -402,10 +402,21 @@ def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
     root = Path(sys.argv[1])
+    ZH.update(json.loads((Path(__file__).parent / "strings-v4.json").read_text(encoding="utf-8")))
     output = root / OUTPUT
     output.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(catalog(), ensure_ascii=False, indent=2) + "\n"
     output.write_text(text, encoding="utf-8")
+    widget_keys = ["Nook", "Anniversary", "Today", "Next Event", "Today in Nook", "%lld tasks remaining",
+                   "Open Nook to set up widget sharing.", "Next Anniversary", "%lld days",
+                   "Open Nook to add an anniversary.", "Your next event and tasks. Details are hidden until you enable them in Nook.",
+                   "Anniversary Countdown", "Keep an important date close.", "Nook Shortcuts", "Ask Nook", "Expense", "Note",
+                   "Open the assistant, add an expense or write a note."]
+    widget_catalog = catalog()
+    widget_catalog["strings"] = {key: value for key, value in widget_catalog["strings"].items() if key in widget_keys}
+    widget_output = root / "ios/NookWidgets/Resources/Localizable.xcstrings"
+    widget_output.parent.mkdir(parents=True, exist_ok=True)
+    widget_output.write_text(json.dumps(widget_catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     json.loads(output.read_text(encoding="utf-8"))
     print(f"wrote {output} with {len(ZH) + len(PLURALS)} keys")
     for key, where in missing_keys(root).items():

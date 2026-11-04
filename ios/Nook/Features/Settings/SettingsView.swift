@@ -55,7 +55,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             TextField("Your name", text: $store.displayName)
                                 .font(.headline)
-                            Text("Everything stays on this iPhone")
+                            Text("Local first. Sync is optional.")
                                 .font(NookFont.caption)
                                 .foregroundStyle(Theme.textSecondary)
                         }
@@ -141,7 +141,7 @@ struct SettingsView: View {
                     NavigationLink("Device Migration") { DeviceTransferView() }
                     if let backupURL {
                         ShareLink(item: backupURL) {
-                            Label("Export Backup", systemImage: "square.and.arrow.up")
+                            Label("Export Legacy JSON", systemImage: "square.and.arrow.up")
                         }
                     } else {
                         Label("Preparing backup…", systemImage: "hourglass")
@@ -149,12 +149,12 @@ struct SettingsView: View {
                     Button {
                         isImporting = true
                     } label: {
-                        Label("Restore from Backup", systemImage: "square.and.arrow.down")
+                        Label("Import Legacy JSON", systemImage: "square.and.arrow.down")
                     }
                 } header: {
                     Text("Data")
                 } footer: {
-                    Text("A backup is a JSON file with your notes, schedule and finance records. Photos and the vault are not included.")
+                    Text("Use Encrypted Backup for a complete backup. Legacy JSON includes records and attachment references, but no photo/audio files, vault or settings.")
                 }
 
                 Section("About") {

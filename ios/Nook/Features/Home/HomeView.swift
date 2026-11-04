@@ -40,10 +40,10 @@ private struct HomeContent: View {
                     HStack(spacing: 12) {
                         Button { router.present(.assistant) } label: {
                             Label("Ask Nook", systemImage: "sparkles").font(.subheadline.bold()).frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                        }.accessibilityIdentifier("home.assistant")
                         Button { router.present(.tasks) } label: {
                             Label("Tasks", systemImage: "checklist").font(.subheadline)
-                        }
+                        }.accessibilityIdentifier("home.tasks")
                     }.card(padding: 16)
                     UpcomingCard(day: router.selectedDay, today: today, now: now)
                     RecentNoteCard(note: store.recentNote)
@@ -103,6 +103,7 @@ private struct AvatarButton: View {
         }
         .buttonStyle(.pressable)
         .accessibilityLabel(Text("Profile and settings"))
+        .accessibilityIdentifier("home.settings")
     }
 }
 

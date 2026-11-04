@@ -30,7 +30,7 @@ struct TasksView: View {
             .navigationTitle("Tasks")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
-                ToolbarItem(placement: .topBarTrailing) { Button { edited = TaskItem(title: "") } label: { Image(systemName: "plus") } }
+                ToolbarItem(placement: .topBarTrailing) { Button { edited = TaskItem(title: "") } label: { Image(systemName: "plus") }.accessibilityIdentifier("task.add") }
             }
             .sheet(item: $edited) { task in TaskEditorView(initial: task).environment(store).modifier(AppAppearance()) }
         }
@@ -48,7 +48,7 @@ private struct TaskEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Title", text: $task.title)
+                TextField("Title", text: $task.title).accessibilityIdentifier("task.title")
                 TextField("Notes", text: $task.notes, axis: .vertical)
                 Toggle("Due Date", isOn: Binding(get: { task.dueAt != nil }, set: { task.dueAt = $0 ? Date() : nil; if !$0 { task.reminderMinutes = nil } }))
                 if task.dueAt != nil {
@@ -69,7 +69,7 @@ private struct TaskEditorView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") {
                     if store.saveTask(task) { dismiss() } else { error = String(localized: "Couldn't save the change") }
-                }.disabled(task.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
+                }.disabled(task.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("task.save") }
             }
             .confirmationDialog("Delete this task?", isPresented: $deleting) { Button("Delete Task", role: .destructive) {
                 do { try store.deleteTask(task.id); dismiss() } catch { self.error = error.localizedDescription }

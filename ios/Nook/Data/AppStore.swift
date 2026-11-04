@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 import NookCore
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// An unfinished checklist item, shown on the home screen.
 struct OpenTodo: Identifiable, Hashable {

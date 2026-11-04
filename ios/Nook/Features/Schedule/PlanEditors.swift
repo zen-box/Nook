@@ -146,9 +146,11 @@ struct AnniversaryEditorView: View {
                     if reminderEnabled {
                         DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
                         ForEach([0, 1, 3, 7, 14, 30], id: \.self) { days in
-                            Toggle(days == 0 ? "On the day" : "\(days) days before", isOn: Binding(get: { reminderDays.contains(days) }, set: { on in
+                            Toggle(isOn: Binding(get: { reminderDays.contains(days) }, set: { on in
                                 if on { reminderDays.insert(days) } else { reminderDays.remove(days) }
-                            }))
+                            })) {
+                                if days == 0 { Text("On the day") } else { Text("\(days) days before") }
+                            }
                         }
                     }
                 }

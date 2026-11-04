@@ -70,9 +70,9 @@ struct TransportFields: View {
                     Text("Flight").tag(TransportDetails.Kind.flight)
                     Text("Other").tag(TransportDetails.Kind.other)
                 }
-                TextField(details?.kind == .flight ? "Flight Number" : "Train Number", text: binding(\.number, ""))
-                TextField(details?.kind == .flight ? "Departure Airport" : "Departure Station", text: binding(\.departure, ""))
-                TextField(details?.kind == .flight ? "Arrival Airport" : "Arrival Station", text: binding(\.arrival, ""))
+                TextField(LocalizedStringKey(details?.kind == .flight ? "Flight Number" : "Train Number"), text: binding(\.number, ""))
+                TextField(LocalizedStringKey(details?.kind == .flight ? "Departure Airport" : "Departure Station"), text: binding(\.departure, ""))
+                TextField(LocalizedStringKey(details?.kind == .flight ? "Arrival Airport" : "Arrival Station"), text: binding(\.arrival, ""))
                 if details?.kind == .flight {
                     TextField("Terminal", text: binding(\.terminal, ""))
                     Toggle("Boarding Time", isOn: Binding(get: { details?.boardingAt != nil }, set: { details?.boardingAt = $0 ? Date() : nil }))
@@ -83,7 +83,7 @@ struct TransportFields: View {
                     TextField("Carriage", text: binding(\.carriage, ""))
                     TextField("Platform", text: binding(\.platform, ""))
                 }
-                TextField(details?.kind == .flight ? "Boarding Gate" : "Check-in Gate", text: binding(\.gate, ""))
+                TextField(LocalizedStringKey(details?.kind == .flight ? "Boarding Gate" : "Check-in Gate"), text: binding(\.gate, ""))
                 TextField("Seat", text: binding(\.seat, ""))
                 Picker("Departure Time Zone", selection: binding(\.departureTimeZone, TimeZone.current.identifier)) {
                     ForEach(TimeZone.knownTimeZoneIdentifiers, id: \.self) { Text(verbatim: $0).tag($0) }
@@ -96,5 +96,20 @@ struct TransportFields: View {
     }
     private func binding<T>(_ keyPath: WritableKeyPath<TransportDetails, T>, _ fallback: T) -> Binding<T> {
         Binding(get: { details?[keyPath: keyPath] ?? fallback }, set: { details?[keyPath: keyPath] = $0 })
+    }
+}
+
+extension TransportDetails {
+    var readableSummary: String {
+        var parts = [number, [departure, arrival].filter { !$0.isEmpty }.joined(separator: " → ")].filter { !$0.isEmpty }
+        for (label, value) in [("Terminal", terminal), ("Boarding Gate", gate), ("Platform", platform), ("Carriage", carriage), ("Seat", seat)] where !value.isEmpty {
+            parts.append(String(localized: String.LocalizationValue(label)) + ": " + value)
+        }
+        if let boardingAt {
+            var style = Date.FormatStyle(date: .abbreviated, time: .shortened)
+            style.timeZone = TimeZone(identifier: departureTimeZone) ?? .current
+            parts.append(String(localized: "Boarding") + ": " + boardingAt.formatted(style))
+        }
+        return parts.joined(separator: " · ")
     }
 }
