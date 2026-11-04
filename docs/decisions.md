@@ -6,7 +6,7 @@
 
 | # | 决定 | 原因 / 以后怎么改 |
 |---|---|---|
-| D1 | 产品名 **Nook**；主 App 的 Bundle ID 为 `nook`，测试 Target 分别为 `nook.tests`、`nook.uitests`。 | 按用户指定使用独立于 GitHub 账号的标识。若万能签重签时更换 ID，已安装的 App 会被系统视为另一个 App。 |
+| D1 | 产品名 **Nook**；主 App 的 Bundle ID 为 `com.nook.personal`，测试 Target 分别为 `com.nook.personal.tests`、`com.nook.personal.uitests`。 | 按用户确认采用反向域名形式，标识独立于 GitHub 账号。若万能签重签时更换 ID，已安装的 App 会被系统视为另一个 App。 |
 | D2 | 用 XcodeGen 2.46.0 从 `ios/project.yml` 生成工程，下载时校验 SHA-256；生成的 `Nook.xcodeproj` 不入库。 | Windows 上没有 Xcode，工程文件只能在云端生成；固定版本和校验值让每次构建一致。升级时同时改 `scripts/install-xcodegen.sh` 里的版本号和校验值。 |
 | D3 | Codemagic 用 `mac_mini_m2`，Xcode 固定 `26.6`。 | 当前默认版本。Codemagic 不再提供这个版本时改成 `latest` 或新的版本号。 |
 | D4 | 三个工作流：`ios-simulator-preview`（模拟器 `.app`，给 App Preview）、`ios-device-unsigned`（关闭签名的 `Nook-unsigned.ipa`，给万能签）、`ios-tests`（NookCore + App 单元/UI 测试）。 | 规格书 13.3：模拟器产物不能改包成真机 IPA，两条路径分开。CI 里不放任何证书或描述文件。 |

@@ -5,7 +5,7 @@
 name: Nook
 
 options:
-  bundleIdPrefix: nook
+  bundleIdPrefix: com.nook
   deploymentTarget:
     iOS: "17.0"
   developmentLanguage: en
@@ -34,7 +34,7 @@ targets:
       - package: NookCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: nook
+        PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal
         PRODUCT_NAME: Nook
         INFOPLIST_FILE: Config/Nook-Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -60,7 +60,7 @@ targets:
       - target: Nook
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: nook.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal.tests
         GENERATE_INFOPLIST_FILE: YES
 
   NookUITests:
@@ -72,5 +72,5 @@ targets:
       - target: Nook
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: nook.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal.uitests
         GENERATE_INFOPLIST_FILE: YES
