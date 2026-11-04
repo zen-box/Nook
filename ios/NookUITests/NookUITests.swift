@@ -88,12 +88,10 @@ final class NookUITests: XCTestCase {
         XCTAssertTrue(schedule.waitForExistence(timeout: 5))
         schedule.buttons["button.add"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["New Event"].waitForExistence(timeout: 5))
-        reveal(app.switches["Repeats"], in: app)
-        app.switches["Repeats"].tap()
+        enable(app.switches["Repeats"], in: app)
         reveal(app.buttons["Weekdays"], in: app)
         app.buttons["Weekdays"].tap()
-        reveal(app.switches["Transport Details"], in: app)
-        app.switches["Transport Details"].tap()
+        enable(app.switches["Transport Details"], in: app)
         reveal(app.textFields["Train Number"], in: app)
         reveal(app.textFields["Departure Station"], in: app)
         capture(app, "重复与交通信息")
@@ -131,8 +129,24 @@ final class NookUITests: XCTestCase {
     }
 
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<8 where !element.isHittable { app.swipeUp() }
-        XCTAssertTrue(element.isHittable)
+        for _ in 0..<12 {
+            if element.exists && element.isHittable { return }
+            let above = element.exists && element.frame.midY < app.frame.midY
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: above ? 0.4 : 0.65))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: above ? 0.65 : 0.4))
+            start.press(forDuration: 0.1, thenDragTo: end)
+        }
+        XCTAssertTrue(element.exists && element.isHittable, "Could not reveal \(element)")
+    }
+
+    @MainActor private func enable(_ toggle: XCUIElement, in app: XCUIApplication) {
+        reveal(toggle, in: app)
+        // SwiftUI exposes the entire labelled row as a Switch. Its center is the
+        // label, while the actual UISwitch is at the trailing edge of that row.
+        if toggle.value as? String != "1" {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        }
+        XCTAssertEqual(toggle.value as? String, "1")
     }
 
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
