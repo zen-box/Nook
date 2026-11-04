@@ -16,8 +16,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Show Xcode and run core tests
         run: |
+          mkdir -p build/logs
+          set -o pipefail
           xcodebuild -version
-          swift test --package-path packages/NookCore
+          swift test --package-path packages/NookCore 2>&1 | tee build/logs/core-tests.log
       - name: Generate project
         run: bash scripts/generate-project.sh
       - name: Select an available iPhone simulator
