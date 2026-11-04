@@ -90,11 +90,12 @@ final class NookUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["New Event"].waitForExistence(timeout: 5))
         reveal(app.switches["Repeats"], in: app)
         app.switches["Repeats"].tap()
-        XCTAssertTrue(app.buttons["Weekdays"].exists)
+        reveal(app.buttons["Weekdays"], in: app)
+        app.buttons["Weekdays"].tap()
         reveal(app.switches["Transport Details"], in: app)
         app.switches["Transport Details"].tap()
         reveal(app.textFields["Train Number"], in: app)
-        XCTAssertTrue(app.textFields["Departure Station"].exists)
+        reveal(app.textFields["Departure Station"], in: app)
         capture(app, "重复与交通信息")
     }
 
