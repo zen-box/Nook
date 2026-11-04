@@ -1,38 +1,39 @@
 import SwiftUI
-import UIKit
 import NookCore
 
-/// P0 shell of the vault (spec 13.5.1: the real vault is P3). Items are demo entries without
-/// any secrets; the copy button copies the account name only.
+/// The password vault. Entries are encrypted on disk; the list is only readable after unlocking
+/// with the master password or Face ID, and the vault locks again when Nook leaves the screen.
 struct VaultView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
     @State private var search = ""
 
     var body: some View {
+        let vault = store.vault
         ScrollView {
             VStack(alignment: .leading, spacing: Metrics.sectionSpacing) {
                 ScreenHeader(title: "Vault") {
+                    if vault.state == .unlocked {
+                        CircleIconButton(symbol: "lock", label: "Lock Vault") {
+                            vault.lock()
+                        }
+                    }
                     AddMenuButton(primary: .account)
                 }
-                SearchField(prompt: "Search accounts or passwords", text: $search)
-                    .padding(.horizontal, Metrics.screenPadding)
                 Group {
-                    if search.isEmpty {
-                        SecureVaultHero()
-                        categoryTiles
-                        SectionHeader(title: "Accounts", actionTitle: "View All") {
-                            router.push(.vaultList(.account), in: .vault)
-                        }
-                        .padding(.top, 4)
-                        VaultRowsCard(items: Array(store.vaultItems(in: .account).prefix(4)))
-                    } else {
-                        let results = store.searchVault(search)
-                        if results.isEmpty {
-                            EmptyStateView(symbol: "magnifyingglass", title: "No matching items").card()
-                        } else {
-                            VaultRowsCard(items: results)
-                        }
+                    if vault.storageFailed {
+                        ContentUnavailableView("Vault storage unavailable", systemImage: "exclamationmark.triangle",
+                                               description: Text("Restart Nook to try again. Your saved vault has not been changed."))
+                    } else { switch vault.state {
+                    case .needsSetup:
+                        SecureVaultHero(isUnlocked: false)
+                        VaultSetupCard()
+                    case .locked:
+                        SecureVaultHero(isUnlocked: false)
+                        VaultUnlockCard()
+                    case .unlocked:
+                        unlockedContent
+                    }
                     }
                 }
                 .padding(.horizontal, Metrics.screenPadding)
@@ -46,16 +47,61 @@ struct VaultView: View {
         .overlay(alignment: .top) { StatusBarScrim() }
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("screen.vault")
+        .onChange(of: router.selectedTab) { _, tab in
+            if tab == .vault && vault.canUnlockQuickly {
+                Task { _ = await vault.unlockQuickly() }
+            }
+        }
+        .onChange(of: vault.state) { _, state in
+            if state != .unlocked {
+                search = ""
+                router.vaultPath = []
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var unlockedContent: some View {
+        let vault = store.vault
+        SearchField(prompt: "Search accounts or passwords", text: $search)
+        if vault.unreadableCount > 0 {
+            Label("\(vault.unreadableCount) items could not be decrypted", systemImage: "exclamationmark.triangle")
+                .font(NookFont.caption)
+                .foregroundStyle(Pastel.rose.strong)
+                .card(padding: 14)
+        }
+        if search.isEmpty {
+            SecureVaultHero(isUnlocked: true)
+            categoryTiles
+            if vault.items.isEmpty {
+                EmptyStateView(symbol: "key", title: "No accounts yet", message: "Tap + to save your first account.")
+                    .card()
+            } else {
+                ForEach(VaultCategory.allCases, id: \.self) { category in
+                    let items = vault.items(in: category)
+                    if !items.isEmpty {
+                        SectionHeader(title: category.label, actionTitle: items.count > 4 ? "View All" : nil) {
+                            router.push(.vaultList(category), in: .vault)
+                        }
+                        .padding(.top, 4)
+                        VaultRowsCard(items: Array(items.prefix(4)))
+                    }
+                }
+            }
+        } else {
+            let results = vault.search(search)
+            if results.isEmpty {
+                EmptyStateView(symbol: "magnifyingglass", title: "No matching items").card()
+            } else {
+                VaultRowsCard(items: results)
+            }
+        }
     }
 
     private var categoryTiles: some View {
-        HStack(spacing: 10) {
-            VaultCategoryTile(
-                title: "All",
-                symbol: "square.grid.2x2",
-                pastel: .blue,
-                count: store.vaultItems.count
-            ) {
+        let vault = store.vault
+        return HStack(spacing: 10) {
+            VaultCategoryTile(title: "All", symbol: "square.grid.2x2", pastel: .blue, count: vault.totalCount) {
                 router.push(.vaultList(nil), in: .vault)
             }
             ForEach(VaultCategory.allCases, id: \.self) { category in
@@ -63,7 +109,7 @@ struct VaultView: View {
                     title: category.label,
                     symbol: category.symbol,
                     pastel: category.pastel,
-                    count: store.vaultItems(in: category).count
+                    count: vault.counts[category] ?? 0
                 ) {
                     router.push(.vaultList(category), in: .vault)
                 }
@@ -73,21 +119,20 @@ struct VaultView: View {
 }
 
 private struct SecureVaultHero: View {
+    let isUnlocked: Bool
+
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            Image(systemName: "lock.fill")
+            Image(systemName: isUnlocked ? "lock.open.fill" : "lock.fill")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(Pastel.mint.strong)
                 .frame(width: 54, height: 54)
                 .background(Theme.surface.opacity(0.92), in: Circle())
                 .shadow(color: Pastel.mint.strong.opacity(0.18), radius: 10, x: 0, y: 4)
             VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Text("Secure Vault")
-                        .font(NookFont.cardTitle)
-                        .foregroundStyle(Theme.textPrimary)
-                    PreviewBadge()
-                }
+                Text("Secure Vault")
+                    .font(NookFont.cardTitle)
+                    .foregroundStyle(Theme.textPrimary)
                 Text("Your accounts and passwords are encrypted and safe.")
                     .font(NookFont.caption)
                     .foregroundStyle(Theme.textSecondary)
@@ -115,6 +160,147 @@ private struct SecureVaultHero: View {
         }
         .shadow(color: Theme.shadow, radius: 18, x: 0, y: 8)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// First use: choose the master password that protects the vault key.
+private struct VaultSetupCard: View {
+    @Environment(AppStore.self) private var store
+    @State private var password = ""
+    @State private var confirmation = ""
+    @State private var isWorking = false
+    @State private var failed = false
+
+    private var canCreate: Bool {
+        password.count >= VaultCrypto.minimumPasswordLength && password == confirmation && !isWorking
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                IconTile(symbol: "key.fill", pastel: .mint, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Create a master password")
+                        .font(NookFont.cardTitle)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("It encrypts everything you keep in the vault.")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            PasswordField(prompt: "Master password", text: $password)
+            PasswordField(prompt: "Repeat master password", text: $confirmation)
+            Group {
+                if !confirmation.isEmpty && password != confirmation {
+                    Text("The two passwords don't match.")
+                        .foregroundStyle(Pastel.rose.strong)
+                } else if failed {
+                    Text("Couldn't create the vault. Please try again.")
+                        .foregroundStyle(Pastel.rose.strong)
+                } else {
+                    Text("At least 8 characters. Nook can't recover a forgotten master password: without it the vault can only be reset.")
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .font(NookFont.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            PrimaryButton(title: "Create Vault", isWorking: isWorking) {
+                create()
+            }
+            .disabled(!canCreate)
+        }
+        .card()
+    }
+
+    private func create() {
+        guard canCreate else { return }
+        isWorking = true
+        failed = false
+        Task {
+            do {
+                try await store.vault.setUp(masterPassword: password)
+                password = ""
+                confirmation = ""
+            } catch {
+                failed = true
+            }
+            isWorking = false
+        }
+    }
+}
+
+private struct VaultUnlockCard: View {
+    @Environment(AppStore.self) private var store
+    @State private var password = ""
+    @State private var isWorking = false
+    @State private var wrongPassword = false
+    @State private var confirmReset = false
+
+    var body: some View {
+        let vault = store.vault
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                IconTile(symbol: "lock.fill", pastel: .blue, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Vault is locked")
+                        .font(NookFont.cardTitle)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("\(vault.totalCount) accounts · \(vault.categoryCount) categories")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            if vault.canUnlockQuickly {
+                PrimaryButton(title: "Unlock with \(DeviceAuthentication.methodName)", symbol: DeviceAuthentication.methodSymbol) {
+                    Task { _ = await vault.unlockQuickly() }
+                }
+            }
+            PasswordField(prompt: "Master password", text: $password)
+                .onSubmit { unlock() }
+            if wrongPassword {
+                Text("Wrong master password.")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Pastel.rose.strong)
+            }
+            if vault.canUnlockQuickly {
+                SoftButton(title: "Unlock") { unlock() }
+                    .disabled(password.isEmpty || isWorking)
+            } else {
+                PrimaryButton(title: "Unlock", isWorking: isWorking) { unlock() }
+                    .disabled(password.isEmpty || isWorking)
+            }
+            Button("Forgot master password?") {
+                confirmReset = true
+            }
+            .font(NookFont.caption)
+            .foregroundStyle(Theme.textSecondary)
+            .frame(maxWidth: .infinity)
+        }
+        .card()
+        .confirmationDialog("Reset the vault?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Delete All Vault Items", role: .destructive) {
+                try? store.vault.reset()
+            }
+        } message: {
+            Text("Without the master password the saved items can't be decrypted. Resetting deletes them and lets you choose a new master password.")
+        }
+    }
+
+    private func unlock() {
+        guard !password.isEmpty, !isWorking else { return }
+        isWorking = true
+        wrongPassword = false
+        Task {
+            do {
+                try await store.vault.unlock(masterPassword: password)
+                password = ""
+            } catch is CancellationError {
+                password = ""
+            } catch {
+                wrongPassword = true
+            }
+            isWorking = false
+        }
     }
 }
 
@@ -160,8 +346,7 @@ struct VaultRowsCard: View {
         VStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 VaultRow(item: item) {
-                    UIPasteboard.general.string = item.subtitle
-                    router.showToast(ToastMessage(text: "Account name copied", symbol: "doc.on.doc.fill"))
+                    copy(item)
                 }
                 if index < items.count - 1 {
                     Hairline().padding(.leading, 66)
@@ -169,6 +354,17 @@ struct VaultRowsCard: View {
             }
         }
         .card(padding: 0)
+    }
+
+    /// Copies the password (or card number) when there is one, otherwise the login name.
+    private func copy(_ item: VaultItem) {
+        if let secret = item.primarySecret {
+            Clipboard.copySecret(secret.value)
+            router.showToast(ToastMessage(text: "\(secret.label) copied for 90 seconds", symbol: "doc.on.doc.fill"))
+        } else if !item.subtitle.isEmpty {
+            Clipboard.copy(item.subtitle)
+            router.showToast(ToastMessage(text: "Copied", symbol: "doc.on.doc.fill"))
+        }
     }
 }
 
@@ -182,19 +378,29 @@ private struct VaultRow: View {
                 HStack(spacing: 12) {
                     IconTile(symbol: item.icon, pastel: item.pastel)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.title)
-                            .font(NookFont.rowTitle)
-                            .foregroundStyle(Theme.textPrimary)
+                        HStack(spacing: 4) {
+                            Text(item.title)
+                                .font(NookFont.rowTitle)
+                                .foregroundStyle(Theme.textPrimary)
+                                .lineLimit(1)
+                            if item.isFavorite {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Pastel.peach.base)
+                            }
+                        }
                         Text(item.subtitle)
                             .font(NookFont.caption)
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    Text(verbatim: "••••••••")
-                        .font(.system(.footnote, weight: .bold))
-                        .foregroundStyle(Theme.textTertiary)
-                        .accessibilityLabel(Text("Password hidden"))
+                    if item.primarySecret != nil {
+                        Text(verbatim: "••••••••")
+                            .font(.system(.footnote, weight: .bold))
+                            .foregroundStyle(Theme.textTertiary)
+                            .accessibilityLabel(Text("Password hidden"))
+                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -207,7 +413,7 @@ private struct VaultRow: View {
                     .background(Theme.primarySoft, in: Circle())
             }
             .buttonStyle(.pressable)
-            .accessibilityLabel(Text("Copy account name"))
+            .accessibilityLabel(Text("Copy password"))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -219,88 +425,20 @@ struct VaultListView: View {
     @Environment(AppStore.self) private var store
 
     var body: some View {
+        let items = store.vault.items(in: category)
         ScrollView {
-            VaultRowsCard(items: store.vaultItems(in: category))
-                .padding(.horizontal, Metrics.screenPadding)
-                .padding(.vertical, 12)
+            Group {
+                if items.isEmpty {
+                    EmptyStateView(symbol: "key", title: "No accounts yet").card()
+                } else {
+                    VaultRowsCard(items: items)
+                }
+            }
+            .padding(.horizontal, Metrics.screenPadding)
+            .padding(.vertical, 12)
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle(Text(category?.label ?? "All Items"))
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct VaultItemDetailView: View {
-    let itemID: UUID
-    @Environment(AppStore.self) private var store
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        Group {
-            if let item = store.vaultItem(id: itemID) {
-                ScrollView {
-                    VStack(spacing: Metrics.sectionSpacing) {
-                        VStack(spacing: 10) {
-                            IconTile(symbol: item.icon, pastel: item.pastel, size: 64)
-                            Text(item.title)
-                                .font(.system(.title2, weight: .bold))
-                                .foregroundStyle(Theme.textPrimary)
-                            HStack(spacing: 6) {
-                                Text(item.category.label)
-                                PreviewBadge()
-                            }
-                            .font(NookFont.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                        }
-                        .padding(.vertical, 8)
-                        VStack(spacing: 0) {
-                            field(title: "Username", value: Text(item.subtitle)) {
-                                UIPasteboard.general.string = item.subtitle
-                                router.showToast(ToastMessage(text: "Account name copied", symbol: "doc.on.doc.fill"))
-                            }
-                            Hairline()
-                            field(title: "Password", value: Text("Not stored in this preview"), action: nil)
-                        }
-                        .card(padding: 0)
-                        Label("Passwords will be stored with end-to-end encryption in a later version. Nothing secret is saved yet.", systemImage: "lock.shield")
-                            .font(NookFont.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal, Metrics.screenPadding)
-                    .padding(.vertical, 12)
-                }
-            } else {
-                ContentUnavailableView("Item not found", systemImage: "lock")
-            }
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func field(title: LocalizedStringKey, value: Text, action: (() -> Void)?) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(NookFont.micro)
-                    .foregroundStyle(Theme.textSecondary)
-                value
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textPrimary)
-            }
-            Spacer(minLength: 8)
-            if let action {
-                Button(action: action) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                        .frame(width: 34, height: 34)
-                        .background(Theme.primarySoft, in: Circle())
-                }
-                .buttonStyle(.pressable)
-                .accessibilityLabel(Text("Copy"))
-            }
-        }
-        .padding(16)
     }
 }

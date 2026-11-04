@@ -228,11 +228,18 @@ struct TransactionRow: View {
 
 struct TransactionsCard: View {
     let entries: [LedgerEntry]
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         VStack(spacing: 0) {
             ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                TransactionRow(entry: entry)
+                Button {
+                    router.present(.editTransaction(entry.id))
+                } label: {
+                    TransactionRow(entry: entry)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
                 if index < entries.count - 1 {
                     Hairline().padding(.leading, 52)
                 }

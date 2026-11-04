@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import NookCore
 
 enum Appearance: String, CaseIterable, Identifiable {
@@ -23,15 +24,23 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// Opened from the avatar. P0 has no account (spec 13.6), so this is local settings only.
+/// Opened from the avatar. There is no account: everything here is stored on this iPhone.
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appearance") private var appearance: Appearance = .system
+    @State private var budgetText = ""
     @State private var backupURL: URL?
-    @State private var backupFailed = false
+    @State private var isImporting = false
+    @State private var pendingRestore: Data?
+    @State private var confirmRestore = false
+    @State private var confirmVaultReset = false
+    @State private var isChangingPassword = false
 
     var body: some View {
+        @Bindable var store = store
+        @Bindable var vault = store.vault
         NavigationStack {
             Form {
                 Section {
@@ -43,15 +52,62 @@ struct SettingsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(verbatim: "Nook")
+                            TextField("Your name", text: $store.displayName)
                                 .font(.headline)
-                            Text("Local profile · no account needed")
+                            Text("Everything stays on this iPhone")
                                 .font(NookFont.caption)
                                 .foregroundStyle(Theme.textSecondary)
                         }
                     }
                     .padding(.vertical, 4)
                 }
+
+                Section {
+                    Picker("Currency", selection: $store.currencyCode) {
+                        ForEach(Self.currencies(including: store.currencyCode), id: \.self) { code in
+                            Text(verbatim: Self.currencyName(code)).tag(code)
+                        }
+                    }
+                    HStack {
+                        Text("Monthly Budget")
+                        Spacer()
+                        TextField("None", text: $budgetText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 140)
+                    }
+                } header: {
+                    Text("Money")
+                } footer: {
+                    Text("Totals count only records in the selected currency.")
+                }
+
+                Section {
+                    if vault.state == .needsSetup {
+                        Text("Create the vault in the Vault tab first.")
+                            .foregroundStyle(Theme.textSecondary)
+                    } else {
+                        Toggle("Unlock with \(DeviceAuthentication.methodName)", isOn: $vault.usesQuickUnlock)
+                            .disabled(!DeviceAuthentication.isAvailable)
+                        Button("Change Master Password") {
+                            isChangingPassword = true
+                        }
+                        .disabled(vault.state != .unlocked)
+                        Button("Reset Vault", role: .destructive) {
+                            confirmVaultReset = true
+                        }
+                    }
+                } header: {
+                    Text("Vault")
+                } footer: {
+                    if !DeviceAuthentication.isAvailable {
+                        Text("Set a passcode on this iPhone to unlock the vault with Face ID.")
+                    }
+                    if vault.state == .locked {
+                        Text("Unlock the vault before changing its master password.")
+                    }
+                }
+
                 Section("Appearance") {
                     Picker("Theme", selection: $appearance) {
                         ForEach(Appearance.allCases) { option in
@@ -60,24 +116,32 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
                 Section {
                     if let backupURL {
                         ShareLink(item: backupURL) {
                             Label("Export Backup", systemImage: "square.and.arrow.up")
                         }
-                    } else if backupFailed {
-                        Label("Backup could not be prepared", systemImage: "exclamationmark.triangle")
                     } else {
                         Label("Preparing backup…", systemImage: "hourglass")
+                    }
+                    Button {
+                        isImporting = true
+                    } label: {
+                        Label("Restore from Backup", systemImage: "square.and.arrow.down")
                     }
                 } header: {
                     Text("Data")
                 } footer: {
-                    Text("Exports notes, schedule and finance records as a JSON file. Vault items are never included.")
+                    Text("A backup is a JSON file with your notes, schedule and finance records. Photos and the vault are not included.")
                 }
+
                 Section("About") {
                     LabeledContent("Version", value: Self.version)
-                    LabeledContent("Storage", value: String(localized: "Sample data in memory"))
+                    LabeledContent(
+                        "Storage",
+                        value: store.isTemporary ? String(localized: "Temporary – not saved") : String(localized: "On this iPhone")
+                    )
                 }
             }
             .scrollContentBackground(.hidden)
@@ -89,15 +153,100 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task {
-                do {
-                    backupURL = try store.writeBackupFile()
-                } catch {
-                    backupFailed = true
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
+                readBackup(result)
+            }
+            .confirmationDialog("Replace your data?", isPresented: $confirmRestore, titleVisibility: .visible) {
+                Button("Replace with Backup", role: .destructive) {
+                    restore()
                 }
+            } message: {
+                Text("Notes, schedule and finance records on this iPhone will be replaced by the backup. The vault stays as it is.")
+            }
+            .confirmationDialog("Reset the vault?", isPresented: $confirmVaultReset, titleVisibility: .visible) {
+                Button("Delete All Vault Items", role: .destructive) {
+                    do {
+                        try store.vault.reset()
+                    } catch {
+                        router.showToast(ToastMessage(text: "Couldn't save the change", symbol: "exclamationmark.triangle.fill", isWarning: true))
+                    }
+                }
+            } message: {
+                Text("This deletes every saved account and the master password. It can't be undone.")
+            }
+            .sheet(isPresented: $isChangingPassword) {
+                ChangeMasterPasswordView()
+                    .environment(store)
+                    .environment(router)
+                    .modifier(PrivacyShield())
             }
         }
+        .onAppear {
+            budgetText = Self.budgetText(store.monthlyBudget)
+        }
+        .onChange(of: budgetText) { _, text in
+            applyBudget(text)
+        }
+        .task {
+            backupURL = try? store.writeBackupFile()
+        }
         .presentationCornerRadius(28)
+    }
+
+    private func applyBudget(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            store.monthlyBudgetMinor = 0
+        } else if let money = Money.parse(trimmed, currencyCode: store.currencyCode, decimalSeparator: Locale.current.decimalSeparator ?? "."),
+                  money.minorUnits >= 0 {
+            store.monthlyBudgetMinor = money.minorUnits
+        }
+    }
+
+    private func readBackup(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            _ = try NookBackup.decode(data)
+            pendingRestore = data
+            confirmRestore = true
+        } catch {
+            router.showToast(ToastMessage(text: "This file is not a Nook backup", symbol: "exclamationmark.triangle.fill", isWarning: true))
+        }
+    }
+
+    private func restore() {
+        guard let data = pendingRestore else { return }
+        pendingRestore = nil
+        do {
+            try store.restoreBackup(data)
+            backupURL = try? store.writeBackupFile()
+            router.showToast(ToastMessage(text: "Backup restored"))
+        } catch {
+            router.showToast(ToastMessage(text: "Couldn't restore the backup", symbol: "exclamationmark.triangle.fill", isWarning: true))
+        }
+    }
+
+    private static func budgetText(_ budget: Money?) -> String {
+        guard let budget else { return "" }
+        return budget.decimalValue.formatted(.number.precision(.fractionLength(budget.minorUnitDigits)).grouping(.never))
+    }
+
+    private static let commonCurrencies = ["CNY", "USD", "EUR", "JPY", "HKD", "TWD", "MOP", "GBP", "KRW", "SGD", "AUD", "CAD", "CHF", "THB"]
+
+    private static func currencies(including current: String) -> [String] {
+        commonCurrencies.contains(current) ? commonCurrencies : [current] + commonCurrencies
+    }
+
+    private static func currencyName(_ code: String) -> String {
+        let name = Locale.current.localizedString(forCurrencyCode: code) ?? code
+        return "\(name) (\(code))"
     }
 
     private static var version: String {

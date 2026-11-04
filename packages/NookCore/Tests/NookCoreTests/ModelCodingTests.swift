@@ -85,15 +85,78 @@ struct ModelCodingTests {
         #expect(try Fixtures.decode(LedgerEntry.self, from: json) == entry)
     }
 
-    @Test func vaultItemHasNoSecretFields() throws {
+    @Test func vaultItem() throws {
         let item = VaultItem(
-            title: "Bank", subtitle: "***** 4589", category: .card, icon: "building.columns",
-            isFavorite: true, createdAt: Self.created
+            title: "Bank", category: .card, icon: "building.columns", isFavorite: true,
+            url: "https://bank.example", notes: "Branch 12",
+            fields: [VaultField(label: "Number", value: "4111 1111 1111 4589", isSecret: true)],
+            createdAt: Self.created
         )
         let json = try Fixtures.jsonText(item)
         #expect(try Fixtures.topLevelKeys(Data(json.utf8)) == [
-            "id", "name", "subtitle", "category", "icon", "favorite", "created_at", "updated_at",
+            "id", "name", "category", "icon", "favorite", "url", "notes", "fields", "created_at", "updated_at",
         ])
+        expectKeys([#""secret":true"#, #""label":"Number""#], in: json)
         #expect(try Fixtures.decode(VaultItem.self, from: json) == item)
+    }
+}
+
+struct VaultItemTests {
+    private func item(_ category: VaultCategory, _ fields: [VaultField]) -> VaultItem {
+        VaultItem(title: "Item", category: category, icon: "key", fields: fields)
+    }
+
+    @Test func subtitleShowsTheFirstVisibleField() {
+        let login = item(.account, [
+            VaultField(label: "Password", value: "hunter2", isSecret: true),
+            VaultField(label: "Username", value: "  alex@example.com "),
+        ])
+        #expect(login.subtitle == "alex@example.com")
+        #expect(item(.account, [VaultField(label: "Password", value: "x", isSecret: true)]).subtitle.isEmpty)
+    }
+
+    @Test func cardsShowTheLastFourDigits() {
+        let card = item(.card, [
+            VaultField(label: "Cardholder", value: "Alex Lin"),
+            VaultField(label: "Number", value: "4111 1111 1111 4589", isSecret: true),
+            VaultField(label: "CVV", value: "123", isSecret: true),
+        ])
+        #expect(card.subtitle == "•••• 4589")
+        #expect(card.primarySecret?.label == "Number")
+    }
+
+    @Test func searchSkipsSecretValues() {
+        let login = item(.account, [
+            VaultField(label: "Username", value: "alex@example.com"),
+            VaultField(label: "Password", value: "correct horse", isSecret: true),
+        ])
+        #expect(login.matches("ALEX example"))
+        #expect(login.matches(""))
+        #expect(!login.matches("horse"))
+    }
+}
+
+struct PasswordGeneratorTests {
+    @Test(arguments: [4, 12, 20, 64])
+    func usesOnlyAllowedCharacters(length: Int) {
+        var generator = SplitMix64(seed: UInt64(length))
+        let password = PasswordGenerator.make(length: length, includeSymbols: true, using: &generator)
+        let allowed = Set(PasswordGenerator.letters + PasswordGenerator.digits + PasswordGenerator.symbols)
+        #expect(password.count == length)
+        #expect(password.allSatisfy { allowed.contains($0) })
+        #expect(password.contains { PasswordGenerator.digits.contains($0) })
+        #expect(password.contains { PasswordGenerator.letters.contains($0) })
+        #expect(password.contains { PasswordGenerator.symbols.contains($0) })
+    }
+
+    @Test func canLeaveOutSymbols() {
+        var generator = SplitMix64(seed: 7)
+        let password = PasswordGenerator.make(length: 30, includeSymbols: false, using: &generator)
+        #expect(!password.contains { PasswordGenerator.symbols.contains($0) })
+    }
+
+    @Test func systemPasswordsDiffer() {
+        #expect(PasswordGenerator.make() != PasswordGenerator.make())
+        #expect(PasswordGenerator.make().count == 20)
     }
 }

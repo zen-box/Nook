@@ -31,6 +31,7 @@ workflows:
     artifacts:
       - build/ios-simulator/Build/Products/Debug-iphonesimulator/Nook.app
       - build/logs/*
+      - ios/Nook.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
   ios-device-unsigned:
     name: iPhone unsigned IPA
@@ -44,6 +45,7 @@ workflows:
     artifacts:
       - build/Nook-unsigned.ipa
       - build/logs/*
+      - ios/Nook.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
   ios-tests:
     name: Tests (NookCore + iOS Simulator)

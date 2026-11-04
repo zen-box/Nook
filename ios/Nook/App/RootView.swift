@@ -5,6 +5,7 @@ import NookCore
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         @Bindable var router = router
@@ -33,6 +34,38 @@ struct RootView: View {
             SheetContent(sheet: sheet)
                 .environment(store)
                 .environment(router)
+                .modifier(PrivacyShield())
+        }
+        .task {
+            store.syncReminders()
+            if store.isTemporary {
+                router.showToast(ToastMessage(text: "Storage unavailable: changes won't be kept", symbol: "exclamationmark.triangle.fill", isWarning: true))
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // The vault forgets its key and entries as soon as the app leaves the screen.
+            if phase == .background {
+                store.vault.lock()
+            }
+        }
+        .modifier(PrivacyShield())
+        .onChange(of: store.saveFailures) { _, _ in
+            router.showToast(ToastMessage(text: "Couldn't save the change", symbol: "exclamationmark.triangle.fill", isWarning: true))
+        }
+    }
+}
+
+/// Covers content while inactive without cancelling the system authentication prompt.
+struct PrivacyShield: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if scenePhase != .active {
+                Theme.background.ignoresSafeArea()
+                    .overlay { Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Theme.textSecondary) }
+                    .accessibilityHidden(true)
+            }
         }
     }
 }
@@ -102,8 +135,22 @@ private struct SheetContent: View {
             EventEditorView(mode: .create(day))
         case .editEvent(let id):
             EventEditorView(mode: .edit(id))
+        case .newTrip:
+            TripEditorView(tripID: nil)
+        case .editTrip(let id):
+            TripEditorView(tripID: id)
+        case .newAnniversary:
+            AnniversaryEditorView(anniversaryID: nil)
+        case .editAnniversary(let id):
+            AnniversaryEditorView(anniversaryID: id)
         case .newExpense:
-            AddTransactionView()
+            AddTransactionView(entryID: nil)
+        case .editTransaction(let id):
+            AddTransactionView(entryID: id)
+        case .vaultEditor(let id):
+            VaultItemEditorView(itemID: id)
+        case .changeMasterPassword:
+            ChangeMasterPasswordView()
         case .notifications:
             NotificationsView()
         case .settings:
@@ -123,10 +170,11 @@ private struct ToastOverlay: View {
         ZStack {
             if let toast = router.toast {
                 let toastID = toast.id
+                let seconds = toast.isWarning ? 3 : 2
                 ToastView(toast: toast)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .task(id: toastID) {
-                        try? await Task.sleep(for: .seconds(2))
+                        try? await Task.sleep(for: .seconds(seconds))
                         router.dismissToast(toastID)
                     }
             }
@@ -142,16 +190,17 @@ private struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: toast.symbol)
-                .foregroundStyle(Pastel.mint.strong)
+                .foregroundStyle(toast.isWarning ? Pastel.rose.strong : Pastel.mint.strong)
             Text(toast.text)
                 .font(.system(.subheadline, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
         }
         .padding(.horizontal, 16)
-        .frame(height: 44)
+        .frame(minHeight: 44)
         .background(Theme.surface, in: Capsule())
         .overlay { Capsule().strokeBorder(Theme.border, lineWidth: 1) }
         .shadow(color: Theme.shadow, radius: 16, x: 0, y: 6)
+        .padding(.horizontal, Metrics.screenPadding)
         .accessibilityElement(children: .combine)
     }
 }
@@ -178,6 +227,16 @@ struct AddMenuButton: View {
                 Label("New Event", systemImage: "calendar.badge.plus")
             }
             Button {
+                router.perform(.trip, store: store)
+            } label: {
+                Label("New Trip", systemImage: "airplane.departure")
+            }
+            Button {
+                router.perform(.anniversary, store: store)
+            } label: {
+                Label("New Anniversary", systemImage: "gift")
+            }
+            Button {
                 router.perform(.expense, store: store)
             } label: {
                 Label("Add Expense", systemImage: "creditcard")
@@ -187,10 +246,6 @@ struct AddMenuButton: View {
             } label: {
                 Label("Add Account", systemImage: "key")
             }
-            Button {} label: {
-                Label("Upload File", systemImage: "paperclip")
-            }
-            .disabled(true)
         } label: {
             CircleIcon(symbol: "plus")
         } primaryAction: {

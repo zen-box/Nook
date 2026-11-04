@@ -1,16 +1,16 @@
 import Foundation
 import NookCore
 
-/// Demo content until real storage arrives (P1). Every date is relative to `now`, so the
-/// screens match the reference design on any day: two events today, the Japan trip note,
-/// $1,280.50 spent this month and 12 vault items.
+#if DEBUG
+/// Demo content for UI tests (launch argument `-uiTesting`); never shown in normal use. Every
+/// date is relative to `now`, so the screens match the reference design on any day: two events
+/// today, the Japan trip note and $1,280.50 spent this month.
 struct SampleData {
     var notes: [Note]
     var events: [ScheduleEvent]
     var trips: [TripPlan]
     var anniversaries: [Anniversary]
     var ledger: [LedgerEntry]
-    var vaultItems: [VaultItem]
 
     static func make(now: Date = Date(), timeZone: TimeZone = .current) -> SampleData {
         let today = LocalDate.today(in: timeZone, now: now)
@@ -39,8 +39,7 @@ struct SampleData {
             events: makeEvents(today: today, trip: trip, at: at, daysAgo: daysAgo, timeZone: timeZone),
             trips: [trip],
             anniversaries: makeAnniversaries(today: today, daysAgo: daysAgo),
-            ledger: makeLedger(today: today, now: now, at: at),
-            vaultItems: makeVault(daysAgo: daysAgo)
+            ledger: makeLedger(today: today, now: now, at: at)
         )
     }
 
@@ -59,7 +58,6 @@ struct SampleData {
                     ChecklistItem(text: "Plan daily itinerary"),
                     ChecklistItem(text: "Prepare travel documents"),
                 ],
-                attachments: [FileRef(name: "mt-fuji.jpg", kind: .image, byteCount: 482_133)],
                 createdAt: daysAgo(10, 20, 0),
                 updatedAt: daysAgo(2, 9, 41)
             ),
@@ -289,25 +287,5 @@ struct SampleData {
         )
         return entries
     }
-
-    private static func makeVault(daysAgo: (Int, Int, Int) -> Date) -> [VaultItem] {
-        let created = daysAgo(30, 9, 0)
-        let items: [(String, String, VaultCategory, String)] = [
-            ("Email", "alex@example.com", .account, "envelope"),
-            ("Cloud Drive", "alex@drive.com", .account, "cloud"),
-            ("Bank", "***** 4589", .account, "building.columns"),
-            ("Work Space", "alex@company.com", .account, "briefcase"),
-            ("Social", "@alex.lin", .account, "person.2"),
-            ("Shopping", "alex.shop@example.com", .account, "cart"),
-            ("Streaming", "alex@stream.tv", .account, "play.rectangle"),
-            ("Visa Card", "**** 1024", .card, "creditcard"),
-            ("Transit Card", "**** 7731", .card, "wallet.bifold"),
-            ("Home Wi-Fi", "Nook-5G", .other, "wifi"),
-            ("Passport", "Expires 2031", .other, "person.text.rectangle"),
-            ("Router", "admin", .other, "wifi.router"),
-        ]
-        return items.map { title, subtitle, category, icon in
-            VaultItem(title: title, subtitle: subtitle, category: category, icon: icon, isFavorite: title == "Email", createdAt: created)
-        }
-    }
 }
+#endif

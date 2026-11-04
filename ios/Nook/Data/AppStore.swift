@@ -16,46 +16,102 @@ struct NextAnniversary: Hashable {
     let days: Int
 }
 
-/// The app's data. In P0 everything lives in memory and starts from sample data; changes are
-/// also written through NookCore's `Repository` protocol so P1 can swap in SQLite (GRDB)
-/// without touching the screens.
+/// The app's data. Everything is read from the SQLite database at launch and every change is
+/// written straight back, so nothing is lost when the app closes. The screens read the arrays
+/// below; the database is the copy that lasts.
 @MainActor @Observable
 final class AppStore {
-    private(set) var notes: [Note]
-    private(set) var events: [ScheduleEvent]
-    private(set) var trips: [TripPlan]
-    private(set) var anniversaries: [Anniversary]
-    private(set) var ledger: [LedgerEntry]
-    private(set) var vaultItems: [VaultItem]
+    private(set) var notes: [Note] = []
+    private(set) var events: [ScheduleEvent] = []
+    private(set) var trips: [TripPlan] = []
+    private(set) var anniversaries: [Anniversary] = []
+    private(set) var ledger: [LedgerEntry] = []
 
-    let currencyCode: String
-    let monthlyBudget: Money
+    /// Goes up each time a change could not be saved, so the screen can say so.
+    private(set) var saveFailures = 0
+    /// True when the database could not be opened: changes then only last until the app quits.
+    let isTemporary: Bool
 
-    private let noteRepository: any Repository<Note>
-    private let eventRepository: any Repository<ScheduleEvent>
-    private let ledgerRepository: any Repository<LedgerEntry>
+    /// Shown on the avatar; empty until set in Settings.
+    var displayName: String {
+        didSet { defaults.set(displayName, forKey: Keys.displayName) }
+    }
 
-    init(seed: SampleData, currencyCode: String = "USD", monthlyBudgetMinor: Int64 = 200_000) {
-        notes = seed.notes
-        events = seed.events
-        trips = seed.trips
-        anniversaries = seed.anniversaries
-        ledger = seed.ledger
-        vaultItems = seed.vaultItems
-        self.currencyCode = currencyCode
-        monthlyBudget = Money(minorUnits: monthlyBudgetMinor, currencyCode: currencyCode)
-        noteRepository = InMemoryRepository(seed.notes)
-        eventRepository = InMemoryRepository(seed.events)
-        ledgerRepository = InMemoryRepository(seed.ledger)
+    var currencyCode: String {
+        didSet { defaults.set(currencyCode, forKey: Keys.currency) }
+    }
+
+    /// In minor units of `currencyCode`; 0 means no budget.
+    var monthlyBudgetMinor: Int64 {
+        didSet { defaults.set(Int(monthlyBudgetMinor), forKey: Keys.budget) }
+    }
+
+    let vault: VaultStore
+    let attachments: AttachmentStore
+    private let database: AppDatabase
+    private let defaults: UserDefaults
+    @ObservationIgnored private var reminderSync: Task<Void, Never>?
+
+    private enum Keys {
+        static let displayName = "profile.name"
+        static let currency = "finance.currency"
+        static let budget = "finance.monthlyBudget"
+    }
+
+    init(
+        database: AppDatabase,
+        attachments: AttachmentStore,
+        defaults: UserDefaults = .standard,
+        vaultParameters: VaultCrypto.KDFParameters = .standard,
+        isTemporary: Bool = false
+    ) {
+        self.database = database
+        self.attachments = attachments
+        self.defaults = defaults
+        self.isTemporary = isTemporary
+        vault = VaultStore(database: database, defaults: defaults, parameters: vaultParameters)
+        displayName = defaults.string(forKey: Keys.displayName) ?? ""
+        currencyCode = defaults.string(forKey: Keys.currency) ?? Self.defaultCurrency
+        monthlyBudgetMinor = Int64(defaults.integer(forKey: Keys.budget))
+        reload()
+    }
+
+    /// The currency of the phone's region, such as CNY in mainland China.
+    static var defaultCurrency: String {
+        Locale.current.currency?.identifier ?? "USD"
     }
 
     var timeZone: TimeZone { .current }
 
-    /// Runs a repository write in the background. The arrays above stay the source the screens
-    /// read; the in-memory repository used in P0 cannot fail.
-    private func persist(_ work: @escaping @Sendable () async throws -> Void) {
-        Task {
-            try? await work()
+    var monthlyBudget: Money? {
+        monthlyBudgetMinor > 0 ? Money(minorUnits: monthlyBudgetMinor, currencyCode: currencyCode) : nil
+    }
+
+    var isEmpty: Bool {
+        notes.isEmpty && events.isEmpty && trips.isEmpty && anniversaries.isEmpty && ledger.isEmpty
+    }
+
+    private func reload() {
+        do {
+            let snapshot = try database.loadSnapshot()
+            notes = snapshot.notes
+            events = snapshot.events
+            trips = snapshot.trips
+            anniversaries = snapshot.anniversaries
+            ledger = snapshot.ledger
+        } catch {
+            saveFailures += 1
+        }
+    }
+
+    /// Runs a database write. On failure nothing in memory changes and the failure is counted.
+    private func write(_ change: (AppDatabase) throws -> Void) -> Bool {
+        do {
+            try change(database)
+            return true
+        } catch {
+            saveFailures += 1
+            return false
         }
     }
 
@@ -70,43 +126,58 @@ final class AppStore {
     }
 
     /// Stores an edited note. The edit time only moves when something actually changed.
-    func saveNote(_ note: Note) {
+    @discardableResult
+    func saveNote(_ note: Note) -> Bool {
         var saved = note
-        if let index = notes.firstIndex(where: { $0.id == note.id }) {
-            guard notes[index] != note else { return }
+        let index = notes.firstIndex { $0.id == note.id }
+        let previousAttachments = index.map { notes[$0].attachments } ?? []
+        if let index {
+            guard notes[index] != note else { return true }
             saved.updatedAt = Date()
+        }
+        guard write({ try $0.save(saved) }) else { return false }
+        if let index {
             notes[index] = saved
         } else {
             notes.append(saved)
         }
-        let repository = noteRepository
-        let record = saved
-        persist { try await repository.upsert(record) }
+        // Only remove files after their references have been removed from SQLite.
+        for ref in previousAttachments where !notes.contains(where: { $0.attachments.contains(where: { $0.id == ref.id }) }) {
+            attachments.delete(ref)
+        }
+        return true
     }
 
+    /// A blank note that is only stored once something is written in it.
     func createNote(category: NoteCategory = .personal) -> Note {
         let note = Note(title: "", category: category)
         notes.append(note)
         return note
     }
 
-    func deleteNote(_ id: UUID) {
+    @discardableResult
+    func deleteNote(_ id: UUID) -> Bool {
+        guard let existing = note(id: id) else { return true }
+        let now = Date()
+        guard write({ try $0.deleteNote(id, updatedAt: now) }) else { return false }
         notes.removeAll { $0.id == id }
-        let repository = noteRepository
-        persist { try await repository.delete(id: id) }
+        for ref in existing.attachments {
+            if !notes.contains(where: { $0.attachments.contains(where: { $0.id == ref.id }) }) {
+                attachments.delete(ref)
+            }
+        }
+        for index in trips.indices where trips[index].noteID == id {
+            trips[index].noteID = nil
+            trips[index].updatedAt = now
+        }
+        return true
     }
 
     /// Drops a note that was opened but never written in.
     func discardIfBlank(_ id: UUID) {
-        if let note = note(id: id), note.isBlank {
+        if let existing = note(id: id), existing.isBlank {
             deleteNote(id)
         }
-    }
-
-    func togglePin(_ id: UUID) {
-        guard var updated = note(id: id) else { return }
-        updated.isPinned.toggle()
-        saveNote(updated)
     }
 
     func toggleChecklistItem(_ itemID: UUID, in noteID: UUID) {
@@ -114,6 +185,14 @@ final class AppStore {
               let index = updated.checklist.firstIndex(where: { $0.id == itemID }) else { return }
         updated.checklist[index].isDone.toggle()
         saveNote(updated)
+    }
+
+    func storePhoto(_ data: Data) throws -> FileRef {
+        try attachments.saveImage(data, name: "Photo.jpg")
+    }
+
+    func discardPhoto(_ ref: FileRef) {
+        attachments.delete(ref)
     }
 
     func openTodos(limit: Int) -> [OpenTodo] {
@@ -157,24 +236,44 @@ final class AppStore {
         }
     }
 
-    func saveEvent(_ event: ScheduleEvent) {
+    @discardableResult
+    func saveEvent(_ event: ScheduleEvent) -> Bool {
         var saved = event
-        if let index = events.firstIndex(where: { $0.id == event.id }) {
-            guard events[index] != event else { return }
+        let index = events.firstIndex { $0.id == event.id }
+        if let index {
+            guard events[index] != event else { return true }
             saved.updatedAt = Date()
+        }
+        guard write({ try $0.save(saved) }) else { return false }
+        if let index {
             events[index] = saved
         } else {
             events.append(saved)
         }
-        let repository = eventRepository
-        let record = saved
-        persist { try await repository.upsert(record) }
+        syncReminders()
+        return true
     }
 
-    func deleteEvent(_ id: UUID) {
+    @discardableResult
+    func deleteEvent(_ id: UUID) -> Bool {
+        guard write({ try $0.delete(ScheduleEvent.self, id: id) }) else { return false }
         events.removeAll { $0.id == id }
-        let repository = eventRepository
-        persist { try await repository.delete(id: id) }
+        syncReminders()
+        return true
+    }
+
+    /// Rebuilds the system notifications for event reminders, one sync at a time.
+    func syncReminders() {
+        let events = self.events
+        let previous = reminderSync
+        reminderSync = Task {
+            await previous?.value
+            await ReminderScheduler.sync(events: events)
+        }
+    }
+
+    func trip(id: UUID) -> TripPlan? {
+        trips.first { $0.id == id }
     }
 
     var tripsByDate: [TripPlan] {
@@ -183,6 +282,80 @@ final class AppStore {
 
     func events(inTrip trip: TripPlan) -> [ScheduleEvent] {
         events.filter { $0.planID == trip.id }.sorted(by: ScheduleQuery.agendaOrder)
+    }
+
+    @discardableResult
+    func saveTrip(_ trip: TripPlan) -> Bool {
+        var saved = trip
+        let index = trips.firstIndex { $0.id == trip.id }
+        if let index {
+            guard trips[index] != trip else { return true }
+            saved.updatedAt = Date()
+        }
+        guard write({ try $0.save(saved) }) else { return false }
+        if let index {
+            trips[index] = saved
+        } else {
+            trips.append(saved)
+        }
+        return true
+    }
+
+    @discardableResult
+    func deleteTrip(_ id: UUID) -> Bool {
+        let now = Date()
+        guard write({ try $0.deleteTrip(id, updatedAt: now) }) else { return false }
+        trips.removeAll { $0.id == id }
+        for index in events.indices where events[index].planID == id {
+            events[index].planID = nil
+            events[index].updatedAt = now
+        }
+        syncReminders()
+        return true
+    }
+
+    /// Creates a travel note for the trip and links it.
+    func createPlanNote(for trip: TripPlan) -> Note? {
+        let note = Note(title: String(localized: "Trip Plan – \(trip.title)"), category: .travel, isPinned: true)
+        var linked = trip
+        linked.noteID = note.id
+        linked.updatedAt = Date()
+        guard write({ try $0.savePlanNote(note, trip: linked) }) else { return nil }
+        notes.append(note)
+        if let index = trips.firstIndex(where: { $0.id == trip.id }) {
+            trips[index] = linked
+        } else {
+            trips.append(linked)
+        }
+        return note
+    }
+
+    func anniversary(id: UUID) -> Anniversary? {
+        anniversaries.first { $0.id == id }
+    }
+
+    @discardableResult
+    func saveAnniversary(_ anniversary: Anniversary) -> Bool {
+        var saved = anniversary
+        let index = anniversaries.firstIndex { $0.id == anniversary.id }
+        if let index {
+            guard anniversaries[index] != anniversary else { return true }
+            saved.updatedAt = Date()
+        }
+        guard write({ try $0.save(saved) }) else { return false }
+        if let index {
+            anniversaries[index] = saved
+        } else {
+            anniversaries.append(saved)
+        }
+        return true
+    }
+
+    @discardableResult
+    func deleteAnniversary(_ id: UUID) -> Bool {
+        guard write({ try $0.delete(Anniversary.self, id: id) }) else { return false }
+        anniversaries.removeAll { $0.id == id }
+        return true
     }
 
     func anniversariesByNextDate(today: LocalDate) -> [Anniversary] {
@@ -207,20 +380,36 @@ final class AppStore {
 
     // MARK: - Finance
 
+    func entry(id: UUID) -> LedgerEntry? {
+        ledger.first { $0.id == id }
+    }
+
     var recentEntries: [LedgerEntry] {
         ledger.sorted { $0.occurredAt > $1.occurredAt }
     }
 
-    func addEntry(_ entry: LedgerEntry) {
-        ledger.append(entry)
-        let repository = ledgerRepository
-        persist { try await repository.upsert(entry) }
+    @discardableResult
+    func saveEntry(_ entry: LedgerEntry) -> Bool {
+        var saved = entry
+        let index = ledger.firstIndex { $0.id == entry.id }
+        if let index {
+            guard ledger[index] != entry else { return true }
+            saved.updatedAt = Date()
+        }
+        guard write({ try $0.save(saved) }) else { return false }
+        if let index {
+            ledger[index] = saved
+        } else {
+            ledger.append(saved)
+        }
+        return true
     }
 
-    func deleteEntry(_ id: UUID) {
+    @discardableResult
+    func deleteEntry(_ id: UUID) -> Bool {
+        guard write({ try $0.delete(LedgerEntry.self, id: id) }) else { return false }
         ledger.removeAll { $0.id == id }
-        let repository = ledgerRepository
-        persist { try await repository.delete(id: id) }
+        return true
     }
 
     /// From the start of the first day to the start of the day after the last.
@@ -258,33 +447,9 @@ final class AppStore {
         FinanceStats.cumulativeSeries(ledger, through: today, currencyCode: currencyCode, timeZone: timeZone)
     }
 
-    // MARK: - Vault (P0 shell: no secrets are stored)
-
-    func vaultItem(id: UUID) -> VaultItem? {
-        vaultItems.first { $0.id == id }
-    }
-
-    func vaultItems(in category: VaultCategory?) -> [VaultItem] {
-        guard let category else { return vaultItems }
-        return vaultItems.filter { $0.category == category }
-    }
-
-    var vaultCategoryCount: Int {
-        Set(vaultItems.map(\.category)).count
-    }
-
-    func searchVault(_ text: String) -> [VaultItem] {
-        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return vaultItems }
-        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
-        return vaultItems.filter {
-            $0.title.range(of: query, options: options) != nil || $0.subtitle.range(of: query, options: options) != nil
-        }
-    }
-
     // MARK: - Backup
 
-    /// Notes, schedule and finance records. The vault is never included.
+    /// Notes, schedule and finance records. The vault and photos are not included.
     func makeBackup(now: Date = Date()) -> NookBackup {
         NookBackup(
             exportedAt: now,
@@ -302,5 +467,55 @@ final class AppStore {
         let url = FileManager.default.temporaryDirectory.appending(path: "Nook-Backup-\(day.isoString).json")
         try data.write(to: url, options: .atomic)
         return url
+    }
+
+    /// Replaces notes, schedule and finance records with a backup's. Throws
+    /// `NookBackup.ReadError` for files that are not Nook backups.
+    func restoreBackup(_ data: Data) throws {
+        let backup = try NookBackup.decode(data)
+        try database.replaceAll(with: backup)
+        reload()
+        syncReminders()
+    }
+
+    #if DEBUG
+    /// Fills an empty database with the demo content, for UI tests.
+    func loadSampleData(_ sample: SampleData) {
+        _ = write { database in
+            try database.replaceAll(with: NookBackup(
+                notes: sample.notes,
+                events: sample.events,
+                trips: sample.trips,
+                anniversaries: sample.anniversaries,
+                ledger: sample.ledger
+            ))
+        }
+        reload()
+    }
+    #endif
+}
+
+extension AppStore {
+    /// The store the app starts with: the database on this iPhone, or, for UI tests, an
+    /// in-memory database with demo content.
+    static func makeForLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppStore {
+        #if DEBUG
+        if arguments.contains("-uiTesting"), let database = try? AppDatabase.makeInMemory() {
+            let suite = "nook.uitesting"
+            let defaults = UserDefaults(suiteName: suite) ?? .standard
+            defaults.removePersistentDomain(forName: suite)
+            let store = AppStore(database: database, attachments: .makeTemporary(), defaults: defaults, vaultParameters: .testing)
+            store.loadSampleData(SampleData.make())
+            return store
+        }
+        #endif
+        do {
+            return AppStore(database: try AppDatabase.openDefault(), attachments: try AttachmentStore.makeDefault())
+        } catch {
+            guard let database = try? AppDatabase.makeInMemory() else {
+                fatalError("SQLite is not available: \(error)")
+            }
+            return AppStore(database: database, attachments: .makeTemporary(), isTemporary: true)
+        }
     }
 }

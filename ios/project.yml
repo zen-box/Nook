@@ -23,6 +23,13 @@ settings:
 packages:
   NookCore:
     path: ../packages/NookCore
+  # Pin app dependencies for reproducible cloud builds.
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    exactVersion: "7.12.0"
+  Sodium:
+    url: https://github.com/jedisct1/swift-sodium
+    exactVersion: "0.11.0"
 
 targets:
   Nook:
@@ -32,6 +39,9 @@ targets:
       - path: Nook
     dependencies:
       - package: NookCore
+      - package: GRDB
+      - package: Sodium
+        product: Clibsodium
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal
@@ -58,6 +68,7 @@ targets:
       - path: NookTests
     dependencies:
       - target: Nook
+      - package: GRDB
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nook.personal.tests

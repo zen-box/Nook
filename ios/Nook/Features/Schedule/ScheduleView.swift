@@ -37,7 +37,7 @@ private struct ScheduleContent: View {
                     CircleIconButton(symbol: "bell", label: "Notifications") {
                         router.present(.notifications)
                     }
-                    AddMenuButton(primary: .event)
+                    AddMenuButton(primary: primaryAction)
                 }
                 PillSegmentedControl(options: ScheduleSegment.allCases, selection: $router.scheduleSegment) { $0.title }
                     .padding(.horizontal, Metrics.screenPadding)
@@ -60,6 +60,14 @@ private struct ScheduleContent: View {
         .background(Theme.background.ignoresSafeArea())
         .overlay(alignment: .top) { StatusBarScrim() }
         .accessibilityIdentifier("screen.schedule")
+    }
+
+    private var primaryAction: QuickAction {
+        switch router.scheduleSegment {
+        case .calendar: .event
+        case .trips: .trip
+        case .anniversaries: .anniversary
+        }
     }
 }
 
@@ -338,11 +346,18 @@ private struct TimelineRow: View {
 private struct TripsSection: View {
     let today: LocalDate
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         VStack(spacing: Metrics.sectionSpacing) {
             if store.trips.isEmpty {
-                EmptyStateView(symbol: "airplane", title: "No trips yet").card()
+                VStack(spacing: 4) {
+                    EmptyStateView(symbol: "airplane", title: "No trips yet", message: "Plan dates, places and events in one place.")
+                    SoftButton(title: "New Trip", symbol: "plus") {
+                        router.present(.newTrip)
+                    }
+                }
+                .card()
             }
             ForEach(store.tripsByDate) { trip in
                 TripCard(trip: trip, today: today)
@@ -355,10 +370,14 @@ private struct TripCard: View {
     let trip: TripPlan
     let today: LocalDate
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         let events = store.events(inTrip: trip)
         VStack(alignment: .leading, spacing: 14) {
+            Button {
+                router.present(.editTrip(trip.id))
+            } label: {
             HStack(spacing: 12) {
                 IconTile(symbol: "airplane.departure", pastel: .blue, size: 44)
                 VStack(alignment: .leading, spacing: 3) {
@@ -378,6 +397,10 @@ private struct TripCard: View {
                     .frame(height: 28)
                     .background(Pastel.blue.soft, in: Capsule())
             }
+            .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Edit trip"))
             ProgressCapsule(value: progress, pastel: .blue)
             if !trip.summary.isEmpty {
                 Text(trip.summary)
@@ -387,20 +410,35 @@ private struct TripCard: View {
             if !events.isEmpty {
                 VStack(spacing: 8) {
                     ForEach(events) { event in
-                        TripEventRow(event: event)
+                        Button {
+                            router.present(.editEvent(event.id))
+                        } label: {
+                            TripEventRow(event: event)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
-            if let noteID = trip.noteID {
-                NavigationLink(value: AppRoute.note(noteID)) {
-                    Label("Open Trip Plan", systemImage: "note.text")
-                        .font(.system(.subheadline, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+            HStack(spacing: 10) {
+                if let noteID = trip.noteID, store.note(id: noteID) != nil {
+                    NavigationLink(value: AppRoute.note(noteID)) {
+                        Label("Open Trip Plan", systemImage: "note.text")
+                            .font(.system(.subheadline, weight: .semibold))
+                            .foregroundStyle(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: Metrics.controlRadius, style: .continuous))
+                    }
+                    .buttonStyle(.pressable)
+                } else {
+                    SoftButton(title: "Create Plan Note", symbol: "note.text.badge.plus") {
+                        guard let note = store.createPlanNote(for: trip) else { return }
+                        router.push(.note(note.id), in: .schedule)
+                    }
                 }
-                .buttonStyle(.pressable)
+                SoftButton(title: "Add Event", symbol: "calendar.badge.plus") {
+                    router.present(.newEvent(max(trip.startDate, today)))
+                }
             }
         }
         .card()
@@ -478,14 +516,26 @@ private struct TripEventRow: View {
 private struct AnniversariesSection: View {
     let today: LocalDate
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         VStack(spacing: 12) {
             if store.anniversaries.isEmpty {
-                EmptyStateView(symbol: "gift", title: "No anniversaries yet").card()
+                VStack(spacing: 4) {
+                    EmptyStateView(symbol: "gift", title: "No anniversaries yet", message: "Birthdays and special days, with a countdown.")
+                    SoftButton(title: "New Anniversary", symbol: "plus") {
+                        router.present(.newAnniversary)
+                    }
+                }
+                .card()
             }
             ForEach(store.anniversariesByNextDate(today: today)) { anniversary in
-                AnniversaryRow(anniversary: anniversary, today: today)
+                Button {
+                    router.present(.editAnniversary(anniversary.id))
+                } label: {
+                    AnniversaryRow(anniversary: anniversary, today: today)
+                }
+                .buttonStyle(.pressable)
             }
         }
     }

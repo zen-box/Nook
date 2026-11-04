@@ -1,19 +1,24 @@
 import SwiftUI
 import NookCore
 
+/// Adds a new expense or income (`entryID` nil) or edits an existing one.
 struct AddTransactionView: View {
+    let entryID: UUID?
     @Environment(AppStore.self) private var store
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var kind: LedgerKind = .expense
     @State private var amountText = ""
+    @State private var currency = ""
     @State private var category: LedgerCategory = .food
     @State private var title = ""
     @State private var date = Date()
+    @State private var loaded = false
+    @State private var confirmDelete = false
     @FocusState private var amountFocused: Bool
 
     private var amount: Money? {
-        Money.parse(amountText, currencyCode: store.currencyCode, decimalSeparator: Locale.current.decimalSeparator ?? ".")
+        Money.parse(amountText, currencyCode: currency, decimalSeparator: Locale.current.decimalSeparator ?? ".")
     }
 
     private var canSave: Bool {
@@ -25,6 +30,15 @@ struct AddTransactionView: View {
         kind == .income ? LedgerCategory.incomeCases : LedgerCategory.expenseCases
     }
 
+    private var titleText: Text {
+        switch (entryID == nil, kind == .income) {
+        case (true, true): Text("Add Income")
+        case (true, false): Text("Add Expense")
+        case (false, true): Text("Edit Income")
+        case (false, false): Text("Edit Expense")
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -33,12 +47,19 @@ struct AddTransactionView: View {
                     amountCard
                     categoryGrid
                     detailsCard
+                    if entryID != nil {
+                        Button("Delete", role: .destructive) {
+                            confirmDelete = true
+                        }
+                        .font(.system(.subheadline, weight: .semibold))
+                        .padding(.top, 4)
+                    }
                 }
                 .padding(Metrics.screenPadding)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle(kind == .income ? Text("Add Income") : Text("Add Expense"))
+            .navigationTitle(titleText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -50,13 +71,41 @@ struct AddTransactionView: View {
                         .disabled(!canSave)
                 }
             }
+            .confirmationDialog("Delete this record?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let entryID {
+                        guard store.deleteEntry(entryID) else { return }
+                    }
+                    dismiss()
+                }
+            }
         }
-        .onAppear { amountFocused = true }
+        .onAppear { load() }
         .onChange(of: kind) { _, newKind in
-            category = newKind == .income ? .salary : .food
+            if !categories.contains(category) {
+                category = newKind == .income ? .salary : .food
+            }
         }
         .presentationDetents([.large])
         .presentationCornerRadius(28)
+    }
+
+    private func load() {
+        guard !loaded else { return }
+        loaded = true
+        currency = store.currencyCode
+        if let entryID, let entry = store.entry(id: entryID) {
+            kind = entry.kind
+            currency = entry.currencyCode
+            category = entry.category
+            title = entry.title
+            date = entry.occurredAt
+            amountText = entry.amount.decimalValue.formatted(
+                .number.precision(.fractionLength(entry.amount.minorUnitDigits)).grouping(.never)
+            )
+        } else {
+            amountFocused = true
+        }
     }
 
     private var amountCard: some View {
@@ -90,7 +139,7 @@ struct AddTransactionView: View {
     private var currencySymbol: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = store.currencyCode
+        formatter.currencyCode = currency.isEmpty ? store.currencyCode : currency
         return formatter.currencySymbol ?? "$"
     }
 
@@ -151,16 +200,18 @@ struct AddTransactionView: View {
     private func save() {
         guard let amount, amount.minorUnits > 0 else { return }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.addEntry(
-            LedgerEntry(
-                kind: kind,
-                amount: amount,
-                category: category,
-                title: trimmed.isEmpty ? category.plainName : trimmed,
-                occurredAt: date
-            )
-        )
-        router.showToast(ToastMessage(text: kind == .income ? "Income added" : "Expense added"))
+        let name = trimmed.isEmpty ? category.plainName : trimmed
+        if let entryID, var entry = store.entry(id: entryID) {
+            entry.kind = kind
+            entry.amount = amount
+            entry.category = category
+            entry.title = name
+            entry.occurredAt = date
+            guard store.saveEntry(entry) else { return }
+        } else {
+            guard store.saveEntry(LedgerEntry(kind: kind, amount: amount, category: category, title: name, occurredAt: date)) else { return }
+            router.showToast(ToastMessage(text: kind == .income ? "Income added" : "Expense added"))
+        }
         dismiss()
     }
 }

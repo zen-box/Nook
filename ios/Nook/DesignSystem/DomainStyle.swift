@@ -157,6 +157,57 @@ extension VaultCategory {
         }
     }
 
+    var singularLabel: LocalizedStringKey {
+        switch self {
+        case .account: "Account"
+        case .card: "Card"
+        case .other: "Other"
+        }
+    }
+
+    var defaultIcon: String {
+        switch self {
+        case .account: "person.crop.circle"
+        case .card: "creditcard"
+        case .other: "key"
+        }
+    }
+
+    /// Icons offered in the editor.
+    var iconChoices: [String] {
+        switch self {
+        case .account:
+            ["person.crop.circle", "envelope", "cloud", "building.columns", "briefcase", "cart", "play.rectangle", "gamecontroller", "message", "globe"]
+        case .card:
+            ["creditcard", "wallet.bifold", "banknote", "building.columns", "tram", "cart"]
+        case .other:
+            ["key", "wifi", "wifi.router", "person.text.rectangle", "house", "car", "doc.text", "lock"]
+        }
+    }
+
+    /// Starting fields for a new entry, with labels in the current language.
+    var templateFields: [VaultField] {
+        switch self {
+        case .account:
+            [
+                VaultField(label: String(localized: "Username")),
+                VaultField(label: String(localized: "Password"), isSecret: true),
+            ]
+        case .card:
+            [
+                VaultField(label: String(localized: "Cardholder")),
+                VaultField(label: String(localized: "Card Number"), isSecret: true),
+                VaultField(label: String(localized: "Expiry")),
+                VaultField(label: String(localized: "CVV"), isSecret: true),
+            ]
+        case .other:
+            [
+                VaultField(label: String(localized: "Detail")),
+                VaultField(label: String(localized: "Password"), isSecret: true),
+            ]
+        }
+    }
+
     var symbol: String {
         switch self {
         case .account: "person.crop.circle"
@@ -177,11 +228,11 @@ extension VaultCategory {
 extension VaultItem {
     var pastel: Pastel {
         switch icon {
-        case "envelope", "creditcard", "wifi": .blue
-        case "cloud", "person.text.rectangle", "play.rectangle": .violet
-        case "building.columns", "cart": .peach
-        case "briefcase", "wallet.bifold": .mint
-        case "person.2": .rose
+        case "envelope", "creditcard", "wifi", "globe", "person.crop.circle": .blue
+        case "cloud", "person.text.rectangle", "play.rectangle", "gamecontroller": .violet
+        case "building.columns", "cart", "banknote", "car": .peach
+        case "briefcase", "wallet.bifold", "house", "key": .mint
+        case "person.2", "message", "lock": .rose
         default: .slate
         }
     }

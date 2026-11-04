@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ copied for 90 seconds": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制%@，90 秒后自动清除"
+          }
+        }
+      }
+    },
     "%@ left this month": {
       "localizations": {
         "zh-Hans": {
@@ -87,6 +97,44 @@
         }
       }
     },
+    "%lld items could not be decrypted": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item could not be decrypted"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items could not be decrypted"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有 %lld 项无法解密"
+          }
+        }
+      }
+    },
+    "%lld minutes before": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前 %lld 分钟"
+          }
+        }
+      }
+    },
     "%lld open": {
       "localizations": {
         "zh-Hans": {
@@ -135,6 +183,46 @@
         }
       }
     },
+    "1 day before": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前 1 天"
+          }
+        }
+      }
+    },
+    "1 hour before": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前 1 小时"
+          }
+        }
+      }
+    },
+    "2 hours before": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前 2 小时"
+          }
+        }
+      }
+    },
+    "A backup is a JSON file with your notes, schedule and finance records. Photos and the vault are not included.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "备份是一个 JSON 文件，包含便签、日程和记账数据，不含照片和密码库。"
+          }
+        }
+      }
+    },
     "About": {
       "localizations": {
         "zh-Hans": {
@@ -155,32 +243,12 @@
         }
       }
     },
-    "Account name copied": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已复制账号名"
-          }
-        }
-      }
-    },
     "Accounts": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "账号"
-          }
-        }
-      }
-    },
-    "Accounts arrive with vault encryption": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "账号功能将随密码库加密一起推出"
           }
         }
       }
@@ -225,12 +293,32 @@
         }
       }
     },
+    "Add Field": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加字段"
+          }
+        }
+      }
+    },
     "Add Income": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "记一笔收入"
+          }
+        }
+      }
+    },
+    "Add Photo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加照片"
           }
         }
       }
@@ -325,12 +413,32 @@
         }
       }
     },
-    "Attachments": {
+    "At least 8 characters.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "附件"
+            "value": "至少 8 个字符。"
+          }
+        }
+      }
+    },
+    "At least 8 characters. Nook can't recover a forgotten master password: without it the vault can only be reset.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "至少 8 个字符。主密码忘记后无法找回，只能重置密码库。"
+          }
+        }
+      }
+    },
+    "At start time": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始时"
           }
         }
       }
@@ -345,12 +453,12 @@
         }
       }
     },
-    "Backup could not be prepared": {
+    "Backup restored": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "备份文件生成失败"
+            "value": "备份已恢复"
           }
         }
       }
@@ -361,6 +469,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "生日"
+          }
+        }
+      }
+    },
+    "Birthdays and special days, with a countdown.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生日和重要的日子，带倒计时。"
           }
         }
       }
@@ -395,6 +513,36 @@
         }
       }
     },
+    "Card": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡片"
+          }
+        }
+      }
+    },
+    "Card Number": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡号"
+          }
+        }
+      }
+    },
+    "Cardholder": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "持卡人"
+          }
+        }
+      }
+    },
     "Cards": {
       "localizations": {
         "zh-Hans": {
@@ -411,6 +559,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "分类"
+          }
+        }
+      }
+    },
+    "Change Master Password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改主密码"
+          }
+        }
+      }
+    },
+    "Change Password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改密码"
           }
         }
       }
@@ -465,6 +633,16 @@
         }
       }
     },
+    "Copied": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "zh-Hans": {
@@ -475,12 +653,112 @@
         }
       }
     },
-    "Copy account name": {
+    "Copy password": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "复制账号名"
+            "value": "复制密码"
+          }
+        }
+      }
+    },
+    "Couldn't add the photo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法添加照片"
+          }
+        }
+      }
+    },
+    "Couldn't create the vault. Please try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建密码库失败，请重试。"
+          }
+        }
+      }
+    },
+    "Couldn't restore the backup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复备份失败"
+          }
+        }
+      }
+    },
+    "Couldn't save the change": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更改未能保存"
+          }
+        }
+      }
+    },
+    "Create Plan Note": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建计划便签"
+          }
+        }
+      }
+    },
+    "Create Vault": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建密码库"
+          }
+        }
+      }
+    },
+    "Create a master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置主密码"
+          }
+        }
+      }
+    },
+    "Create the vault in the Vault tab first.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先在密码库页面创建密码库。"
+          }
+        }
+      }
+    },
+    "Currency": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "货币"
+          }
+        }
+      }
+    },
+    "Current master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前主密码"
           }
         }
       }
@@ -575,12 +853,42 @@
         }
       }
     },
+    "Delete All Vault Items": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除密码库全部内容"
+          }
+        }
+      }
+    },
+    "Delete Anniversary": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除纪念日"
+          }
+        }
+      }
+    },
     "Delete Event": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "删除日程"
+          }
+        }
+      }
+    },
+    "Delete Item": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除项目"
           }
         }
       }
@@ -595,12 +903,42 @@
         }
       }
     },
+    "Delete Trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除行程"
+          }
+        }
+      }
+    },
+    "Delete this anniversary?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这个纪念日？"
+          }
+        }
+      }
+    },
     "Delete this event?": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "删除这个日程？"
+          }
+        }
+      }
+    },
+    "Delete this item?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这个项目？"
           }
         }
       }
@@ -615,12 +953,52 @@
         }
       }
     },
+    "Delete this record?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这条记录？"
+          }
+        }
+      }
+    },
+    "Delete this trip?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除这个行程？"
+          }
+        }
+      }
+    },
     "Description (optional)": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "说明（可选）"
+          }
+        }
+      }
+    },
+    "Destination": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目的地"
+          }
+        }
+      }
+    },
+    "Detail": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "信息"
           }
         }
       }
@@ -645,12 +1023,82 @@
         }
       }
     },
+    "Edit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑"
+          }
+        }
+      }
+    },
+    "Edit Anniversary": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑纪念日"
+          }
+        }
+      }
+    },
     "Edit Event": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "编辑日程"
+          }
+        }
+      }
+    },
+    "Edit Expense": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑支出"
+          }
+        }
+      }
+    },
+    "Edit Income": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑收入"
+          }
+        }
+      }
+    },
+    "Edit Item": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑项目"
+          }
+        }
+      }
+    },
+    "Edit Trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑行程"
+          }
+        }
+      }
+    },
+    "Edit trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑行程"
           }
         }
       }
@@ -705,6 +1153,16 @@
         }
       }
     },
+    "Everything stays on this iPhone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有数据都保存在这台 iPhone 上"
+          }
+        }
+      }
+    },
     "Expense": {
       "localizations": {
         "zh-Hans": {
@@ -745,6 +1203,16 @@
         }
       }
     },
+    "Expiry": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有效期"
+          }
+        }
+      }
+    },
     "Export Backup": {
       "localizations": {
         "zh-Hans": {
@@ -755,12 +1223,32 @@
         }
       }
     },
-    "Exports notes, schedule and finance records as a JSON file. Vault items are never included.": {
+    "Face ID": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将便签、日程和记账数据导出为 JSON 文件。密码库内容不会被导出。"
+            "value": "面容 ID"
+          }
+        }
+      }
+    },
+    "Favorite": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收藏"
+          }
+        }
+      }
+    },
+    "Fields": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字段"
           }
         }
       }
@@ -805,12 +1293,32 @@
         }
       }
     },
+    "Forgot master password?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忘记主密码？"
+          }
+        }
+      }
+    },
     "Fun": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "娱乐"
+          }
+        }
+      }
+    },
+    "Generate password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成密码"
           }
         }
       }
@@ -851,6 +1359,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "健康"
+          }
+        }
+      }
+    },
+    "Hide": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏"
+          }
+        }
+      }
+    },
+    "Hide password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏密码"
           }
         }
       }
@@ -923,12 +1451,42 @@
         }
       }
     },
-    "Item not found": {
+    "It encrypts everything you keep in the vault.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "找不到该项目"
+            "value": "密码库里的所有内容都用它加密。"
+          }
+        }
+      }
+    },
+    "Its events and plan note are kept.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相关日程和计划便签会保留。"
+          }
+        }
+      }
+    },
+    "Keep passwords & accounts secure": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全保存账号和密码"
+          }
+        }
+      }
+    },
+    "Label": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
           }
         }
       }
@@ -953,22 +1511,22 @@
         }
       }
     },
-    "Local profile · no account needed": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "本地资料 · 无需账号"
-          }
-        }
-      }
-    },
     "Location": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "地点"
+          }
+        }
+      }
+    },
+    "Lock Vault": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "锁定密码库"
           }
         }
       }
@@ -999,6 +1557,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "将此事项标记为完成"
+          }
+        }
+      }
+    },
+    "Master Password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主密码"
+          }
+        }
+      }
+    },
+    "Master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主密码"
+          }
+        }
+      }
+    },
+    "Master password changed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主密码已修改"
+          }
+        }
+      }
+    },
+    "Money": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记账"
           }
         }
       }
@@ -1043,12 +1641,42 @@
         }
       }
     },
+    "Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
+    "New Anniversary": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建纪念日"
+          }
+        }
+      }
+    },
     "New Event": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "新建日程"
+          }
+        }
+      }
+    },
+    "New Item": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建项目"
           }
         }
       }
@@ -1063,12 +1691,42 @@
         }
       }
     },
+    "New Trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建行程"
+          }
+        }
+      }
+    },
+    "New master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新主密码"
+          }
+        }
+      }
+    },
     "Next week": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "下一周"
+          }
+        }
+      }
+    },
+    "No accounts yet": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有账号"
           }
         }
       }
@@ -1163,12 +1821,12 @@
         }
       }
     },
-    "Not stored in this preview": {
+    "None": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "演示版不保存密码"
+            "value": "无"
           }
         }
       }
@@ -1203,6 +1861,16 @@
         }
       }
     },
+    "Notes, schedule and finance records on this iPhone will be replaced by the backup. The vault stays as it is.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台 iPhone 上的便签、日程和记账数据将被备份替换，密码库保持不变。"
+          }
+        }
+      }
+    },
     "Nothing planned. Enjoy the free time.": {
       "localizations": {
         "zh-Hans": {
@@ -1223,12 +1891,32 @@
         }
       }
     },
+    "On this iPhone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机"
+          }
+        }
+      }
+    },
     "Open Trip Plan": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "打开行程计划"
+          }
+        }
+      }
+    },
+    "Optic ID": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optic ID"
           }
         }
       }
@@ -1263,6 +1951,16 @@
         }
       }
     },
+    "Passcode": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备密码"
+          }
+        }
+      }
+    },
     "Password": {
       "localizations": {
         "zh-Hans": {
@@ -1283,16 +1981,6 @@
         }
       }
     },
-    "Passwords will be stored with end-to-end encryption in a later version. Nothing secret is saved yet.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "后续版本会用端到端加密保存密码，目前不会保存任何机密信息。"
-          }
-        }
-      }
-    },
     "Personal": {
       "localizations": {
         "zh-Hans": {
@@ -1303,12 +1991,22 @@
         }
       }
     },
-    "Photo of Mt. Fuji": {
+    "Photo": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "富士山照片"
+            "value": "照片"
+          }
+        }
+      }
+    },
+    "Photos": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片"
           }
         }
       }
@@ -1333,22 +2031,22 @@
         }
       }
     },
+    "Plan dates, places and events in one place.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把日期、地点和日程放在一起规划。"
+          }
+        }
+      }
+    },
     "Preparing backup…": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "正在准备备份…"
-          }
-        }
-      }
-    },
-    "Preview": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "演示"
           }
         }
       }
@@ -1423,6 +2121,16 @@
         }
       }
     },
+    "Reminder": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提醒"
+          }
+        }
+      }
+    },
     "Reminders for today's events will show up here.": {
       "localizations": {
         "zh-Hans": {
@@ -1443,22 +2151,112 @@
         }
       }
     },
+    "Remove photo": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除照片"
+          }
+        }
+      }
+    },
+    "Repeat master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再次输入主密码"
+          }
+        }
+      }
+    },
+    "Repeat new master password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再次输入新主密码"
+          }
+        }
+      }
+    },
+    "Repeats every year": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每年重复"
+          }
+        }
+      }
+    },
+    "Replace with Backup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用备份替换"
+          }
+        }
+      }
+    },
+    "Replace your data?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换现有数据？"
+          }
+        }
+      }
+    },
+    "Reset Vault": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置密码库"
+          }
+        }
+      }
+    },
+    "Reset the vault?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置密码库？"
+          }
+        }
+      }
+    },
+    "Restart Nook to try again. Your saved vault has not been changed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请重新启动 Nook 后再试，已保存的密码库没有被修改。"
+          }
+        }
+      }
+    },
+    "Restore from Backup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从备份恢复"
+          }
+        }
+      }
+    },
     "Salary": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "工资"
-          }
-        }
-      }
-    },
-    "Sample data in memory": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "示例数据（仅在内存中）"
           }
         }
       }
@@ -1503,12 +2301,52 @@
         }
       }
     },
+    "Secret Field": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机密字段"
+          }
+        }
+      }
+    },
+    "Secret fields stay hidden until you tap the eye, and copies of them leave the clipboard after 90 seconds.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机密字段默认隐藏，点眼睛图标才显示；复制后 90 秒自动从剪贴板清除。"
+          }
+        }
+      }
+    },
     "Secure Vault": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "安全密码库"
+          }
+        }
+      }
+    },
+    "Set a budget in Settings to track it here.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在设置中设定预算后，这里会显示进度。"
+          }
+        }
+      }
+    },
+    "Set a passcode on this iPhone to unlock the vault with Face ID.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为这台 iPhone 设置锁屏密码后，才能用面容 ID 解锁密码库。"
           }
         }
       }
@@ -1529,6 +2367,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "购物"
+          }
+        }
+      }
+    },
+    "Show": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示"
+          }
+        }
+      }
+    },
+    "Show password": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示密码"
           }
         }
       }
@@ -1593,6 +2451,16 @@
         }
       }
     },
+    "Storage unavailable: changes won't be kept": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存储不可用：更改不会被保存"
+          }
+        }
+      }
+    },
     "System": {
       "localizations": {
         "zh-Hans": {
@@ -1623,12 +2491,62 @@
         }
       }
     },
+    "Tap + to save your first account.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点 + 保存第一个账号。"
+          }
+        }
+      }
+    },
     "Tap + to write your first note.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "点 + 写下第一条便签。"
+          }
+        }
+      }
+    },
+    "Tap to add your first expense": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点一下记第一笔支出"
+          }
+        }
+      }
+    },
+    "Temporary – not saved": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "临时存储，不会保存"
+          }
+        }
+      }
+    },
+    "Text Field": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本字段"
+          }
+        }
+      }
+    },
+    "The two passwords don't match.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两次输入的密码不一致。"
           }
         }
       }
@@ -1659,6 +2577,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "本周"
+          }
+        }
+      }
+    },
+    "This deletes every saved account and the master password. It can't be undone.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会删除所有已保存的账号和主密码，且无法撤销。"
+          }
+        }
+      }
+    },
+    "This file is not a Nook backup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个文件不是 Nook 备份"
           }
         }
       }
@@ -1713,6 +2651,26 @@
         }
       }
     },
+    "Totals count only records in the selected currency.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计只计入所选货币的记录。"
+          }
+        }
+      }
+    },
+    "Touch ID": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触控 ID"
+          }
+        }
+      }
+    },
     "Transactions": {
       "localizations": {
         "zh-Hans": {
@@ -1753,6 +2711,36 @@
         }
       }
     },
+    "Trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程"
+          }
+        }
+      }
+    },
+    "Trip Plan – %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程计划 – %@"
+          }
+        }
+      }
+    },
+    "Trip name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行程名称"
+          }
+        }
+      }
+    },
     "Trips": {
       "localizations": {
         "zh-Hans": {
@@ -1779,6 +2767,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 岁"
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "类型"
+          }
+        }
+      }
+    },
+    "Unlock": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁"
+          }
+        }
+      }
+    },
+    "Unlock the vault before changing its master password.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改主密码前请先解锁密码库。"
+          }
+        }
+      }
+    },
+    "Unlock the vault to add an account": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先解锁密码库再添加账号"
+          }
+        }
+      }
+    },
+    "Unlock with %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用%@解锁"
+          }
+        }
+      }
+    },
+    "Unlock your vault": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁密码库"
           }
         }
       }
@@ -1813,12 +2861,22 @@
         }
       }
     },
-    "Upload File": {
+    "Updated %@": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "上传文件"
+            "value": "%@更新"
+          }
+        }
+      }
+    },
+    "Use the original date, such as the date of birth, to see how many years it has been.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填写最初的日期（例如出生日期），就能看到已经过了多少年。"
           }
         }
       }
@@ -1833,12 +2891,42 @@
         }
       }
     },
+    "Value": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容"
+          }
+        }
+      }
+    },
     "Vault": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "密码库"
+          }
+        }
+      }
+    },
+    "Vault is locked": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码库已锁定"
+          }
+        }
+      }
+    },
+    "Vault storage unavailable": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码库暂时无法读取"
           }
         }
       }
@@ -1863,6 +2951,36 @@
         }
       }
     },
+    "Website": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网站"
+          }
+        }
+      }
+    },
+    "What's the plan?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有什么安排？"
+          }
+        }
+      }
+    },
+    "Without the master password the saved items can't be decrypted. Resetting deletes them and lets you choose a new master password.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有主密码就无法解密已保存的内容。重置会删除这些内容，之后可以设置新的主密码。"
+          }
+        }
+      }
+    },
     "Work": {
       "localizations": {
         "zh-Hans": {
@@ -1883,12 +3001,42 @@
         }
       }
     },
+    "Write your first note": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写下第一条便签"
+          }
+        }
+      }
+    },
+    "Wrong master password.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主密码不正确。"
+          }
+        }
+      }
+    },
     "Your accounts and passwords are encrypted and safe.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "你的账号和密码经过加密，安全可靠。"
+          }
+        }
+      }
+    },
+    "Your name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的名字"
           }
         }
       }

@@ -326,18 +326,6 @@ struct ChangeBadge: View {
     }
 }
 
-/// Marks screens that only show demo content in this version.
-struct PreviewBadge: View {
-    var body: some View {
-        Text("Preview")
-            .font(.system(.caption2, weight: .semibold))
-            .foregroundStyle(Pastel.violet.strong)
-            .padding(.horizontal, 7)
-            .frame(height: 20)
-            .background(Pastel.violet.soft, in: Capsule())
-    }
-}
-
 struct ProgressCapsule: View {
     /// 0...1; values outside are clamped.
     let value: Double

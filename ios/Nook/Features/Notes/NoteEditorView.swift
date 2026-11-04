@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import NookCore
 
@@ -5,9 +6,13 @@ import NookCore
 struct NoteEditorView: View {
     let noteID: UUID
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var draft: Note?
     @State private var confirmDelete = false
+    @State private var photoSelection: PhotosPickerItem?
+    @State private var isLoadingPhoto = false
+    @State private var isVisible = false
     @FocusState private var focus: EditorFocus?
 
     enum EditorFocus: Hashable {
@@ -32,6 +37,7 @@ struct NoteEditorView: View {
             }
         }
         .onAppear {
+            isVisible = true
             if draft == nil {
                 draft = store.note(id: noteID)
                 if draft?.isBlank == true {
@@ -44,13 +50,18 @@ struct NoteEditorView: View {
                 store.saveNote(newValue)
             }
         }
+        .onChange(of: photoSelection) { _, item in
+            guard let item else { return }
+            addPhoto(item)
+        }
         .onDisappear {
+            isVisible = false
+            if store.note(id: noteID) != nil, let draft { store.saveNote(draft) }
             store.discardIfBlank(noteID)
         }
         .confirmationDialog("Delete this note?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete Note", role: .destructive) {
-                store.deleteNote(noteID)
-                dismiss()
+                if store.deleteNote(noteID) { dismiss() }
             }
         }
     }
@@ -120,16 +131,7 @@ struct NoteEditorView: View {
                         .focused($focus, equals: .body)
                         .card(padding: 14)
                 }
-                if note.wrappedValue.hasImage {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Attachments")
-                            .font(NookFont.rowTitle)
-                            .foregroundStyle(Theme.textPrimary)
-                        FujiThumbnail(cornerRadius: 20)
-                            .frame(height: 190)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
+                photosSection(note)
             }
             .padding(.horizontal, Metrics.screenPadding)
             .padding(.top, 8)
@@ -227,6 +229,78 @@ struct NoteEditorView: View {
             }
             .card(padding: 14)
         }
+    }
+
+    private func photosSection(_ note: Binding<Note>) -> some View {
+        let photos = note.wrappedValue.attachments.filter { $0.kind == .image }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Photos")
+                    .font(NookFont.rowTitle)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                if isLoadingPhoto {
+                    ProgressView()
+                }
+                PhotosPicker(selection: $photoSelection, matching: .images) {
+                    Label("Add Photo", systemImage: "photo.badge.plus")
+                        .font(.system(.subheadline, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                }
+                .disabled(isLoadingPhoto)
+            }
+            if !photos.isEmpty {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                    ForEach(photos) { photo in
+                        AttachmentImage(ref: photo, thumbnail: false, cornerRadius: 14)
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(alignment: .topTrailing) {
+                                Button {
+                                    removePhoto(photo, from: note)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 20))
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, Color.black.opacity(0.45))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(6)
+                                .accessibilityLabel(Text("Remove photo"))
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    private func addPhoto(_ item: PhotosPickerItem) {
+        isLoadingPhoto = true
+        Task {
+            defer {
+                isLoadingPhoto = false
+                photoSelection = nil
+            }
+            guard let data = try? await item.loadTransferable(type: Data.self) else {
+                router.showToast(ToastMessage(text: "Couldn't add the photo", symbol: "exclamationmark.triangle.fill", isWarning: true))
+                return
+            }
+            guard isVisible, store.note(id: noteID) != nil, var updated = draft else { return }
+            do {
+                let ref = try store.storePhoto(data)
+                updated.attachments.append(ref)
+                if store.saveNote(updated) {
+                    draft = updated
+                } else {
+                    store.discardPhoto(ref)
+                }
+            } catch {
+                router.showToast(ToastMessage(text: "Couldn't add the photo", symbol: "exclamationmark.triangle.fill", isWarning: true))
+            }
+        }
+    }
+
+    private func removePhoto(_ ref: FileRef, from note: Binding<Note>) {
+        note.wrappedValue.attachments.removeAll { $0.id == ref.id }
     }
 
     /// Return on a filled item adds the next one; on an empty item it removes it.

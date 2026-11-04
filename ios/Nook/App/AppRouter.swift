@@ -41,7 +41,15 @@ enum AppRoute: Hashable {
 enum AppSheet: Identifiable, Hashable {
     case newEvent(LocalDate)
     case editEvent(UUID)
+    case newTrip
+    case editTrip(UUID)
+    case newAnniversary
+    case editAnniversary(UUID)
     case newExpense
+    case editTransaction(UUID)
+    /// A new vault entry (nil) or an existing one.
+    case vaultEditor(UUID?)
+    case changeMasterPassword
     case notifications
     case settings
     case pickDay
@@ -50,7 +58,14 @@ enum AppSheet: Identifiable, Hashable {
         switch self {
         case .newEvent(let day): "newEvent-\(day.isoString)"
         case .editEvent(let id): "editEvent-\(id.uuidString)"
+        case .newTrip: "newTrip"
+        case .editTrip(let id): "editTrip-\(id.uuidString)"
+        case .newAnniversary: "newAnniversary"
+        case .editAnniversary(let id): "editAnniversary-\(id.uuidString)"
         case .newExpense: "newExpense"
+        case .editTransaction(let id): "editTransaction-\(id.uuidString)"
+        case .vaultEditor(let id): "vaultEditor-\(id?.uuidString ?? "new")"
+        case .changeMasterPassword: "changeMasterPassword"
         case .notifications: "notifications"
         case .settings: "settings"
         case .pickDay: "pickDay"
@@ -62,11 +77,12 @@ struct ToastMessage: Identifiable, Equatable {
     let id = UUID()
     let text: LocalizedStringKey
     var symbol = "checkmark.circle.fill"
+    var isWarning = false
 }
 
 /// The quick-add actions from the spec (section 3.3).
 enum QuickAction {
-    case note, event, expense, account
+    case note, event, trip, anniversary, expense, account
 }
 
 /// Which tab is showing, what is pushed in each tab, and which sheet is up.
@@ -161,10 +177,20 @@ final class AppRouter {
             startNewNote(in: store)
         case .event:
             present(.newEvent(selectedDay))
+        case .trip:
+            present(.newTrip)
+        case .anniversary:
+            present(.newAnniversary)
         case .expense:
             present(.newExpense)
         case .account:
-            showToast(ToastMessage(text: "Accounts arrive with vault encryption", symbol: "lock.fill"))
+            if store.vault.state == .unlocked {
+                present(.vaultEditor(nil))
+            } else {
+                selectedTab = .vault
+                vaultPath = []
+                showToast(ToastMessage(text: "Unlock the vault to add an account", symbol: "lock.fill"))
+            }
         }
     }
 }

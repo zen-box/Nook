@@ -139,10 +139,37 @@ private struct BreakdownCard: View {
 private struct BudgetCard: View {
     let today: LocalDate
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
+        if let budget = store.monthlyBudget {
+            progress(budget)
+        } else {
+            Button {
+                router.present(.settings)
+            } label: {
+                HStack(spacing: 12) {
+                    IconTile(symbol: "target", pastel: .violet)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Monthly Budget")
+                            .font(NookFont.cardTitle)
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Set a budget in Settings to track it here.")
+                            .font(NookFont.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    Chevron()
+                }
+                .card()
+            }
+            .buttonStyle(.pressable)
+        }
+    }
+
+    @ViewBuilder
+    private func progress(_ budget: Money) -> some View {
         let spent = store.monthToDate(today: today).current
-        let budget = store.monthlyBudget
         let ratio = budget.minorUnits > 0 ? Double(spent.minorUnits) / Double(budget.minorUnits) : 0
         let remaining = budget - spent
         VStack(alignment: .leading, spacing: 12) {
@@ -178,6 +205,7 @@ private struct BudgetCard: View {
 
 struct AllTransactionsView: View {
     @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     private struct DayGroup: Identifiable {
         let day: LocalDate
@@ -196,7 +224,13 @@ struct AllTransactionsView: View {
             ForEach(groups) { group in
                 Section {
                     ForEach(group.entries) { entry in
-                        TransactionRow(entry: entry)
+                        Button {
+                            router.present(.editTransaction(entry.id))
+                        } label: {
+                            TransactionRow(entry: entry)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                             .listRowBackground(Theme.surface)
                             .swipeActions {
                                 Button(role: .destructive) {

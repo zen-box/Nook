@@ -8,6 +8,7 @@ final class NookUITests: XCTestCase {
     @MainActor
     func testHomeShowsTheMainCards() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
         app.launch()
         XCTAssertTrue(app.scrollViews["screen.home"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["home.upcoming"].exists)
@@ -17,6 +18,7 @@ final class NookUITests: XCTestCase {
     @MainActor
     func testEveryTabOpens() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
         app.launch()
         XCTAssertTrue(app.buttons["tab.home"].waitForExistence(timeout: 15))
         for tab in ["notes", "vault", "schedule", "finance", "home"] {
@@ -28,6 +30,7 @@ final class NookUITests: XCTestCase {
     @MainActor
     func testOpeningANoteHidesTheTabBar() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
         app.launch()
         let recentNote = app.buttons["home.recentNote"]
         XCTAssertTrue(recentNote.waitForExistence(timeout: 15))

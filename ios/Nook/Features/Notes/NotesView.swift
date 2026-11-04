@@ -176,8 +176,8 @@ struct NoteCard: View {
                             previewText
                         }
                         Spacer(minLength: 0)
-                        if note.hasImage {
-                            FujiThumbnail()
+                        if let photo = note.attachments.first(where: { $0.kind == .image }) {
+                            AttachmentImage(ref: photo)
                                 .frame(width: 92, height: 92)
                         }
                     }

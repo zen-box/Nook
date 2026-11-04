@@ -18,8 +18,23 @@ struct EventEditorView: View {
     @State private var isAllDay = false
     @State private var start = Date()
     @State private var end = Date()
+    @State private var reminder: Int? = 10
+    @State private var tripID: UUID?
     @State private var loaded = false
     @State private var confirmDelete = false
+
+    /// Minutes before the start.
+    static let reminderOptions = [0, 5, 10, 15, 30, 60, 120, 1440]
+
+    static func reminderLabel(_ minutes: Int) -> LocalizedStringKey {
+        switch minutes {
+        case 0: "At start time"
+        case 60: "1 hour before"
+        case 120: "2 hours before"
+        case 1440: "1 day before"
+        default: "\(minutes) minutes before"
+        }
+    }
 
     private var isEditing: Bool {
         switch mode {
@@ -50,6 +65,24 @@ struct EventEditorView: View {
                     Toggle("All day", isOn: $isAllDay)
                     DatePicker("Starts", selection: $start, displayedComponents: components)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: components)
+                    if !isAllDay {
+                        Picker("Reminder", selection: $reminder) {
+                            Text("None").tag(Int?.none)
+                            ForEach(Self.reminderOptions, id: \.self) { minutes in
+                                Text(Self.reminderLabel(minutes)).tag(Int?.some(minutes))
+                            }
+                        }
+                    }
+                }
+                if !store.trips.isEmpty {
+                    Section {
+                        Picker("Trip", selection: $tripID) {
+                            Text("None").tag(UUID?.none)
+                            ForEach(store.tripsByDate) { trip in
+                                Text(trip.title).tag(UUID?.some(trip.id))
+                            }
+                        }
+                    }
                 }
                 Section("Details") {
                     TextField("Add notes", text: $notes, axis: .vertical)
@@ -102,6 +135,8 @@ struct EventEditorView: View {
             let hour = isToday ? min(Calendar.current.component(.hour, from: Date()) + 1, 23) : 9
             start = day.date(hour: hour, in: store.timeZone)
             end = start.addingTimeInterval(3600)
+            // A new event during a trip belongs to it.
+            tripID = store.trips.first { $0.startDate <= day && day <= $0.endDate }?.id
         case .edit(let id):
             guard let event = store.event(id: id) else { return }
             title = event.title
@@ -110,6 +145,8 @@ struct EventEditorView: View {
             category = event.category
             isAllDay = event.isAllDay
             start = event.start
+            reminder = event.reminderMinutes
+            tripID = event.planID
             if event.isAllDay {
                 // Stored ends are exclusive (next midnight); show the last day instead.
                 end = max(event.effectiveEnd.addingTimeInterval(-1), event.start)
@@ -153,14 +190,16 @@ struct EventEditorView: View {
         event.location = place.isEmpty ? nil : place
         event.notes = notes
         event.category = category
-        store.saveEvent(event)
+        event.reminderMinutes = isAllDay ? nil : reminder
+        event.planID = tripID
+        guard store.saveEvent(event) else { return }
         router.selectedDay = LocalDate(eventStart, timeZone: zone)
         dismiss()
     }
 
     private func deleteAndClose() {
         if case .edit(let id) = mode {
-            store.deleteEvent(id)
+            guard store.deleteEvent(id) else { return }
         }
         dismiss()
     }

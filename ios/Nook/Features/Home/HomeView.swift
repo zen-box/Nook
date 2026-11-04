@@ -27,7 +27,7 @@ private struct HomeContent: View {
                     ) {
                         router.present(.notifications)
                     }
-                    AvatarButton {
+                    AvatarButton(name: store.displayName) {
                         router.present(.settings)
                     }
                 }
@@ -38,9 +38,7 @@ private struct HomeContent: View {
                 .padding(.bottom, 2)
                 VStack(spacing: Metrics.sectionSpacing) {
                     UpcomingCard(day: router.selectedDay, today: today, now: now)
-                    if let note = store.recentNote {
-                        RecentNoteCard(note: note)
-                    }
+                    RecentNoteCard(note: store.recentNote)
                     MonthExpenseCard(today: today)
                     VaultSummaryCard()
                     TodosCard()
@@ -68,12 +66,20 @@ private struct HomeContent: View {
 // MARK: - Header pieces
 
 private struct AvatarButton: View {
+    let name: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(verbatim: "A")
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+            Group {
+                if let initial = name.trimmingCharacters(in: .whitespaces).first {
+                    Text(verbatim: String(initial).uppercased())
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+            }
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(
@@ -214,28 +220,44 @@ private struct UpcomingRow: View {
 }
 
 private struct RecentNoteCard: View {
-    let note: Note
+    let note: Note?
+    @Environment(AppStore.self) private var store
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
-        NavigationLink(value: AppRoute.note(note.id)) {
-            HStack(spacing: 12) {
-                IconTile(symbol: "note.text", pastel: .peach)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Recent Note")
-                        .font(NookFont.cardTitle)
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(note.displayTitle)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(1)
+        Group {
+            if let note {
+                NavigationLink(value: AppRoute.note(note.id)) {
+                    row(subtitle: Text(note.displayTitle))
                 }
-                Spacer(minLength: 8)
-                Chevron()
+            } else {
+                Button {
+                    router.perform(.note, store: store)
+                } label: {
+                    row(subtitle: Text("Write your first note"))
+                }
             }
-            .card()
         }
         .buttonStyle(.pressable)
         .accessibilityIdentifier("home.recentNote")
+    }
+
+    private func row(subtitle: Text) -> some View {
+        HStack(spacing: 12) {
+            IconTile(symbol: "note.text", pastel: .peach)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Recent Note")
+                    .font(NookFont.cardTitle)
+                    .foregroundStyle(Theme.textPrimary)
+                subtitle
+                    .font(NookFont.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Chevron()
+        }
+        .card()
     }
 }
 
@@ -264,9 +286,15 @@ private struct MonthExpenseCard: View {
                         Text(verbatim: total.formatted())
                             .font(NookFont.amount)
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Budget \(store.monthlyBudget.formatted())")
-                            .font(NookFont.caption)
-                            .foregroundStyle(Theme.textSecondary)
+                        Group {
+                            if let budget = store.monthlyBudget {
+                                Text("Budget \(budget.formatted())")
+                            } else if store.ledger.isEmpty {
+                                Text("Tap to add your first expense")
+                            }
+                        }
+                        .font(NookFont.caption)
+                        .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer(minLength: 8)
                     MiniBars(values: series)
@@ -317,9 +345,15 @@ private struct VaultSummaryCard: View {
                     Text("My Vault")
                         .font(NookFont.cardTitle)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("\(store.vaultItems.count) accounts · \(store.vaultCategoryCount) categories")
-                        .font(NookFont.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                    Group {
+                        if store.vault.totalCount == 0 {
+                            Text("Keep passwords & accounts secure")
+                        } else {
+                            Text("\(store.vault.totalCount) accounts · \(store.vault.categoryCount) categories")
+                        }
+                    }
+                    .font(NookFont.caption)
+                    .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer(minLength: 8)
                 Chevron()

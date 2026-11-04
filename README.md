@@ -8,8 +8,9 @@ Nook 是一个私密、离线优先的个人生活空间，目标平台为 iOS 1
 |---|---|
 | iOS 界面 | SwiftUI、Observation、NavigationStack、Swift Charts |
 | 可移植业务核心 | Swift Package `NookCore`，Foundation / Codable 与协议抽象 |
-| iOS 本地数据 | SQLite + GRDB、FTS5、Repository 与数据库迁移 |
-| iOS 系统集成 | Keychain、LocalAuthentication、UserNotifications、EventKit |
+| iOS 本地数据 | SQLite + GRDB 7.12.0、数据库迁移；当前搜索在内存中过滤 |
+| iOS 系统集成 | Keychain、LocalAuthentication、UserNotifications、PhotosPicker |
+| 本地密码库 | libsodium（swift-sodium 0.11.0）、Argon2id、XChaCha20-Poly1305 |
 | 工程与依赖 | XcodeGen + Swift Package Manager |
 | 服务端 | Go；具体数据库、对象存储和部署方案后续确定 |
 | 构建与体验 | Windows 编辑 / 核心包测试，Codemagic macOS 编译 + App Preview |
@@ -20,11 +21,14 @@ Nook 是一个私密、离线优先的个人生活空间，目标平台为 iOS 1
 - [旧 Flutter 原型归档](archive/flutter-prototype-2026-11-04/README.md)：原 `app/` 已移至 `archive/flutter-prototype-2026-11-04/app/`，同时保存旧版规格与 README。原型包含首页、便签、基础日程和收支记录，使用 shared_preferences 本地 JSON；新客户端的视觉以用户提供的参考图为准。
 - `server/`：Go 服务端骨架，已有 `/healthz` 健康端点，暂不接收业务数据。
 - Swift for Windows 6.4.2 已装在 `E:\Swift\Toolchain`，编译、运行、包构建和 Foundation JSON 测试已通过。
-- `packages/NookCore/`：业务模型、金额与日期计算、查询统计、备份格式、同步信封和 Repository 协议。Windows 上 `swift test` 82 个测试全部通过。
-- `ios/`：SwiftUI App（首页、便签、密码库、日程、记账五个主入口），按参考图实现的设计系统、示例数据、AppIcon 和中英文字符串。Windows 只能做语法检查，**完整编译要在 Codemagic 上进行，尚未执行**。
+- `packages/NookCore/`：业务模型、金额与日期计算、查询统计、备份格式、同步信封、密码生成器和 Repository 协议。Windows 上 `swift test` 88 个测试全部通过。
+- `ios/`：SwiftUI App，包含首页、便签、密码库、日程、记账五个入口，以及中英文界面和设置。正式启动读取 SQLite，示例数据仅用于 Debug UI 测试。
+- 本地功能：便签 / 清单 / 照片、日程 / 行程 / 纪念日、收支增删改、统计、货币与月预算设置、JSON 备份导出和恢复。定时日程支持本地通知，需允许通知权限。
+- 密码库：主密码创建与解锁、账号 / 卡片 / 自定义秘密字段、搜索 / 收藏 / 密码生成、限时本机剪贴板、修改主密码和重置；密文落库，Keychain 快捷解锁要求系统认证，后台锁定并遮盖应用切换快照。详见 [本地密码库格式与验收](docs/local-vault.md)。
+- 构建记录：`8dd62d0` 已在 Codemagic 生成未签名 IPA。本次持久化与密码库版本通过 Windows 核心测试、Go 检查和 iOS Swift 语法检查；**完整 iOS 编译、App 单元/UI 测试与真机验收仍需对最新提交执行**。
 - `codemagic.yaml` + `scripts/`：模拟器 Preview、未签名 IPA、测试三个工作流，以及命令行调用构建 API 的脚本。
-- P0 的数据只在内存中，重启后回到示例数据；本地持久化（SQLite / GRDB）在 P1。密码库目前是界面外壳，不保存任何密码。
-- 首版继续聚焦便签、基础日程、收支记录和本地备份 / 导出；密码库、账号、加密同步和 AI 按规格书的后置阶段实施。
+- JSON 备份包含便签、日程、行程、纪念日与收支；**不包含照片文件、密码库和设置**。请勿把它当成完整迁移包。卸载前需另行保管密码库中的重要凭据；忘记主密码只能清空重建。
+- 后续阶段：账号、服务端数据接口、加密同步、统一密钥 / 恢复协议、FTS5、EventKit 和 AI。Go 服务端目前仍只有健康检查。
 
 ## 目录
 
@@ -34,14 +38,14 @@ ios/
   Config/                Info.plist
   Nook/App               入口、Tab 与导航路由
   Nook/DesignSystem      颜色 / 字体 / 间距 Token、卡片、悬浮 Tab 栏等组件
-  Nook/Data              AppStore（界面状态）、示例数据、格式化
+  Nook/Data              AppStore、Database / Vault、照片、提醒、示例数据
   Nook/Features          Home / Notes / Vault / Schedule / Finance / Settings
   Nook/Resources         Assets.xcassets、Localizable.xcstrings
   NookTests, NookUITests 单元测试与 UI 测试
 packages/NookCore/       可在 Windows 编译测试的业务核心
 server/                  Go 服务端骨架
 docs/                    决策记录、API 约定
-testvectors/             加密测试向量（目录约定，P2 填充）
+testvectors/             预留给后续同步协议；本地密码库向量在 ios/NookTests
 scripts/                 构建、测试、图标和字符串脚本
 ```
 
