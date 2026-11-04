@@ -50,6 +50,10 @@ struct TravelAndWidgetTests {
         let visible = WidgetSnapshot.make(notes: [note], events: [event], trips: [trip], tasks: [], anniversaries: [anniversary], details: true, now: now, timeZone: zone)
         #expect(visible.noteTitle == note.title && visible.trip?.route?.contains("G123") == true)
         #expect(!(try JSONValue.from(visible)).json.contains("PRIVATE-NOTE-BODY"))
+        let untitled = Note(title: " \n ", body: "PRIVATE-UNTITLED-BODY", category: .personal)
+        let untitledSnapshot = WidgetSnapshot.make(notes: [untitled], events: [], trips: [], tasks: [], anniversaries: [], details: true, now: now, timeZone: zone)
+        #expect(untitledSnapshot.noteTitle == nil && untitledSnapshot.noteCount == 1)
+        #expect(!(try JSONValue.from(untitledSnapshot)).json.contains("PRIVATE-UNTITLED-BODY"))
     }
     @Test func sharedDataDistinguishesPermissionEmptyCorruptAndSuccessfulReads() throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "nook-widget-test-\(UUID())")

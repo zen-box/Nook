@@ -84,4 +84,14 @@ struct AssistantSafetyTests {
         #expect(try db.loadSnapshot().trips.first?.title == savedTrip.title)
         #expect(try db.loadSnapshot().events.first?.notes == "Edited elsewhere")
     }
+    @Test func widgetLinksDismissSettingsAndOpenTheActualContent() throws {
+        let store = store(try .makeInMemory()), router = AppRouter()
+        var note = store.createNote(); note.title = "Recent"; #expect(store.saveNote(note))
+        router.present(.settings)
+        router.open(URL(string: "nook://notes")!, in: store)
+        #expect(router.activeSheet == nil && router.selectedTab == .notes && router.notesPath == [.note(note.id)])
+        router.present(.settings)
+        router.open(URL(string: "nook://trips")!, in: store)
+        #expect(router.activeSheet == nil && router.selectedTab == .schedule && router.scheduleSegment == .trips)
+    }
 }

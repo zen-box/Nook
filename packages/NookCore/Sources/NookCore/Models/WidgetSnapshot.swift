@@ -45,11 +45,12 @@ public struct WidgetSnapshot: Codable, Sendable {
                 route: details ? segment?.transport.map(ReminderPlan.transportText) : nil)
         }
         let visibleNotes = notes.filter { !$0.isBlank }.sorted { $0.updatedAt > $1.updatedAt }
+        let noteTitle = visibleNotes.first?.title.trimmingCharacters(in: .whitespacesAndNewlines)
         return Self(updatedAt: now, eventTitle: details ? upcoming.first?.title : nil, eventStart: upcoming.first?.start,
             taskTitles: details ? Array(openTasks.prefix(3).map(\.title)) : [], openTaskCount: openTasks.count,
             anniversaryTitle: details ? nextAnniversary?.0.title : nil, anniversaryDate: nextAnniversary?.1, showsDetails: details,
             agenda: upcoming.map { WidgetAgendaItem(title: details ? $0.title : nil, start: $0.start, end: $0.effectiveEnd, allDay: $0.isAllDay) },
-            trip: tripItem, noteTitle: details ? visibleNotes.first?.title : nil, noteCount: visibleNotes.count, timeZoneID: timeZone.identifier)
+            trip: tripItem, noteTitle: details && noteTitle?.isEmpty == false ? noteTitle : nil, noteCount: visibleNotes.count, timeZoneID: timeZone.identifier)
     }
 }
 

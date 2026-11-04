@@ -56,19 +56,7 @@ struct RootView: View {
         .onChange(of: store.vault.syncRevision) { _, _ in store.syncCoordinator.scheduleSync() }
         .onChange(of: appearance) { _, _ in store.syncCoordinator.scheduleSync() }
         .onOpenURL { url in
-            guard url.scheme == "nook" else { return }
-            switch url.host {
-            case "assistant": router.present(.assistant)
-            case "tasks": router.present(.tasks)
-            case "expense": router.present(.newExpense)
-            case "note": router.startNewNote(in: store)
-            case "notes": router.select(.notes)
-            case "schedule": router.showSchedule()
-            case "trips": router.showSchedule(segment: .trips)
-            case "finance": router.select(.finance)
-            case "anniversaries": router.showSchedule(segment: .anniversaries)
-            default: break
-            }
+            router.open(url, in: store)
         }
         .modifier(PrivacyShield())
         .onChange(of: store.saveFailures) { _, _ in

@@ -160,6 +160,27 @@ final class AppRouter {
         activeSheet = sheet
     }
 
+    /// Widget links replace a previous sheet rather than leaving Settings over the destination.
+    func open(_ url: URL, in store: AppStore) {
+        guard url.scheme == "nook", let host = url.host,
+              ["assistant", "tasks", "expense", "note", "notes", "schedule", "trips", "finance", "anniversaries"].contains(host) else { return }
+        activeSheet = nil
+        switch host {
+        case "assistant": present(.assistant)
+        case "tasks": present(.tasks)
+        case "expense": present(.newExpense)
+        case "note": startNewNote(in: store)
+        case "notes":
+            selectedTab = .notes
+            notesPath = store.recentNote.map { [.note($0.id)] } ?? []
+        case "schedule": schedulePath = []; showSchedule()
+        case "trips": schedulePath = []; showSchedule(segment: .trips)
+        case "finance": financePath = []; selectedTab = .finance
+        case "anniversaries": schedulePath = []; showSchedule(segment: .anniversaries)
+        default: break
+        }
+    }
+
     func showToast(_ message: ToastMessage) {
         toast = message
     }

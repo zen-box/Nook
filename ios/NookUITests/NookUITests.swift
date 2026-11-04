@@ -181,10 +181,18 @@ final class NookUITests: XCTestCase {
 
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<12 {
-            if element.exists && element.isHittable { return }
-            let above = element.exists && element.frame.midY < app.frame.midY
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: above ? 0.4 : 0.65))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: above ? 0.65 : 0.4))
+            let top = app.frame.minY + 160
+            let keyboard = app.keyboards.firstMatch
+            let bottom = min(app.frame.maxY - 100, keyboard.exists ? keyboard.frame.minY - 20 : app.frame.maxY)
+            // SwiftUI can report a clipped row as hittable. Keep the whole row
+            // inside the content area and start drags above any visible keyboard.
+            if element.exists && element.isHittable && element.frame.minY >= top && element.frame.maxY <= bottom { return }
+            let above = element.exists && element.frame.midY < top
+            let upper = top + (bottom - top) * 0.25
+            let lower = top + (bottom - top) * 0.75
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: app.frame.width / 2, dy: above ? upper : lower))
+            let end = origin.withOffset(CGVector(dx: app.frame.width / 2, dy: above ? lower : upper))
             start.press(forDuration: 0.1, thenDragTo: end)
         }
         XCTAssertTrue(element.exists && element.isHittable, "Could not reveal \(element)")
